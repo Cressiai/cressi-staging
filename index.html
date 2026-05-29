@@ -847,10 +847,14 @@ function buildTasteContext() {
 // who she's shopping for before she responds.
 function buildEnrichedPrompt(userMessage) {
   const ctx = buildTasteContext();
-  const formatInstruction = `
+  const sf = tasteProfile.shopsFor || 'Women\'s';
+  const genderLine = sf === 'Both'
+    ? ''
+    : `\nIMPORTANT: This shopper buys ${sf} fashion ONLY. Every product recommendation must be from ${sf.toLowerCase()} collections — never the opposite gender.`;
+  const formatInstruction = `${genderLine}
 
 When you have specific product recommendations, format each one exactly like this on its own line:
-PRODUCT: [Brand] | [Product Name] | [Price] | [Retailer] | [One sentence why this works for her]
+PRODUCT: [Brand] | [Product Name] | [Price] | [Retailer] | [One sentence why this works for them]
 
 Maximum 3 products. Lead with the strongest pick. After products, offer 1 follow-up question.`;
 
@@ -1437,7 +1441,7 @@ function renderProfilePanel() {
     return;
   }
 
-  const { fit, prices, style } = JSON.parse(saved);
+  const { shopsFor, fit, prices, style } = JSON.parse(saved);
   const currentFit   = (fit||'').split(', ').filter(f => f && f !== '—');
   const currentStyle = Array.isArray(style) ? style.filter(s => s && s !== '—') : [];
   const customStyle  = currentStyle.filter(s => !STYLE_OPTIONS.includes(s));
