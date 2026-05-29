@@ -391,7 +391,6 @@
         <span class="ob-chip" onclick="selectShopsFor(this)">Women's</span>
         <span class="ob-chip" onclick="selectShopsFor(this)">Men's</span>
         <span class="ob-chip" onclick="selectShopsFor(this)">Both</span>
-        <span class="ob-chip" onclick="selectShopsFor(this)">Non-binary / All</span>
       </div>
       <div class="ob-nav">
         <button class="ob-back invisible">← Back</button>
@@ -532,7 +531,7 @@
         <span class="topbar-title">New conversation</span>
       </div>
       <div class="topbar-actions">
-        <button class="topbar-btn">Clear</button>
+        <button class="topbar-btn" onclick="clearChat()">Clear</button>
         <button class="topbar-btn">Share</button>
       </div>
     </div>
@@ -762,6 +761,26 @@ function usePrompt(el) {
 
 function scrollBottom() { msgsView.scrollTop = msgsView.scrollHeight; }
 
+function clearChat() {
+  // Reset chat
+  msgsView.innerHTML = '';
+  msgsView.style.display = 'none';
+  welcomeView.style.display = '';
+  welcomeView.style.opacity = '1';
+  welcomeView.style.transition = '';
+  firstMsg = true;
+  currentThreadId = null;
+  isStreaming = false;
+  // Reset right panel
+  const list = document.querySelector('#resultsActive .results-list');
+  if (list) list.innerHTML = '';
+  const countEl = document.querySelector('#resultsActive .results-big-num');
+  if (countEl) countEl.textContent = '0';
+  resActive.classList.remove('visible');
+  resEmpty.style.display = '';
+  resEmpty.style.opacity = '1';
+}
+
 function showChat() {
   if (!firstMsg) return;
   firstMsg = false;
@@ -806,17 +825,16 @@ function buildTasteContext() {
   const saved = localStorage.getItem(OB_KEY);
   if (!saved) return '';
   try {
-    const { shopsFor, fit, prices, style } = JSON.parse(saved);
-    if (shopsFor) {
-      tasteProfile.shopsFor = shopsFor;
-      selectedShopsFor = shopsFor;
-    }
+    const { shopsFor: sf, fit, prices, style } = JSON.parse(saved);
+    const shopsFor = sf || 'Women\'s'; // default to Women's for existing profiles
+    tasteProfile.shopsFor = shopsFor;
+    selectedShopsFor = shopsFor;
     const priceLines = Object.entries(prices||{})
       .filter(([,v]) => v && v !== '—')
       .map(([k,v]) => `${k}: ${v}`)
       .join(', ');
     return [
-      shopsFor        ? `Shopping for: ${shopsFor}` : '',
+      `Shopping for: ${shopsFor}`,
       style?.length   ? `Style identity: ${style.join(', ')}` : '',
       fit             ? `Fit notes: ${fit}` : '',
       priceLines      ? `Budget ranges — ${priceLines}` : '',
@@ -1433,7 +1451,7 @@ function renderProfilePanel() {
       <div style="margin-bottom:28px;">
         <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);margin-bottom:12px;">Shopping for</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;" id="editShopsForChips">
-          ${['Women\'s','Men\'s','Both','Non-binary / All'].map(o => `<span class="ob-chip${(shopsFor||'Women\'s')===o?' selected':''}" onclick="editSelectShopsFor(this)">${o}</span>`).join('')}
+          ${['Women\'s','Men\'s','Both'].map(o => `<span class="ob-chip${(shopsFor||'Women\'s')===o?' selected':''}" onclick="editSelectShopsFor(this)">${o}</span>`).join('')}
         </div>
       </div>
 
