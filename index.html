@@ -488,11 +488,11 @@
     </div>
     <div class="nav-section">
       <span class="nav-section-label">Menu</span>
-      <div class="nav-item active"><span class="nav-icon">✦</span><span class="nav-label">Hey Cressi</span></div>
-      <div class="nav-item"><span class="nav-icon">♡</span><span class="nav-label">Wishlist</span><span class="nav-badge">4</span></div>
-      <div class="nav-item"><span class="nav-icon">◈</span><span class="nav-label">Profiles</span></div>
+      <div class="nav-item active" data-nav="cressi" onclick="switchNav('cressi')"><span class="nav-icon">✦</span><span class="nav-label">Hey Cressi</span></div>
+      <div class="nav-item" data-nav="wishlist" onclick="switchNav('wishlist')"><span class="nav-icon">♡</span><span class="nav-label">Wishlist</span><span class="nav-badge" id="wishBadge">0</span></div>
+      <div class="nav-item" data-nav="profile" onclick="switchNav('profile')"><span class="nav-icon">◈</span><span class="nav-label">Profiles</span></div>
       <div class="nav-item" style="opacity:0.35;cursor:default;pointer-events:none;"><span class="nav-icon">◻</span><span class="nav-label">Shop for Others</span><span style="margin-left:auto;font-size:6px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);opacity:0.6;">Soon</span></div>
-      <div class="nav-item"><span class="nav-icon">◷</span><span class="nav-label">Chat History</span></div>
+      <div class="nav-item" data-nav="history" onclick="switchNav('history')"><span class="nav-icon">◷</span><span class="nav-label">Chat History</span></div>
     </div>
     <span class="recents-label">Recent</span>
     <div class="recent-list">
@@ -580,6 +580,39 @@
       </div>
     </div>
     <input type="file" id="file-upload" accept="image/*" onchange="handleFileUpload(event)">
+  </main>
+
+  <!-- WISHLIST PANEL -->
+  <main class="chat-panel" id="wishlistPanel" style="display:none;">
+    <div class="chat-topbar">
+      <div class="topbar-left"><div class="status-dot"></div><span class="topbar-title">Wishlist</span></div>
+    </div>
+    <div style="padding:32px 28px;overflow-y:auto;flex:1;">
+      <div id="wishlistContent" style="display:flex;flex-direction:column;gap:0;"></div>
+      <div id="wishlistEmpty" style="text-align:center;padding:80px 20px;color:var(--smoke);display:none;">
+        <div style="font-size:32px;margin-bottom:12px;">♡</div>
+        <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px;">Nothing saved yet</div>
+        <div style="font-size:13px;">Tap ♡ on any product to save it here.</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- PROFILE PANEL -->
+  <main class="chat-panel" id="profilePanel" style="display:none;">
+    <div class="chat-topbar">
+      <div class="topbar-left"><div class="status-dot"></div><span class="topbar-title">Your Taste Profile</span></div>
+    </div>
+    <div style="padding:32px 28px;overflow-y:auto;flex:1;" id="profileContent"></div>
+  </main>
+
+  <!-- HISTORY PANEL -->
+  <main class="chat-panel" id="historyPanel" style="display:none;">
+    <div class="chat-topbar">
+      <div class="topbar-left"><div class="status-dot"></div><span class="topbar-title">Chat History</span></div>
+    </div>
+    <div style="padding:32px 28px;overflow-y:auto;flex:1;" id="historyContent">
+      <div style="color:var(--smoke);font-size:13px;">Your recent Cressi conversations will appear here.</div>
+    </div>
   </main>
 
   <!-- RESULTS PANEL -->
@@ -945,6 +978,7 @@ function renderRealProducts(products) {
 
 function populateRightPanel(products) {
   if (!products || !products.length) return;
+  window._wishProducts = products; // store for handleWishToggle
   const panel = document.getElementById('resultsActive');
   const empty  = document.getElementById('resultsEmpty');
   if (empty)  { empty.style.display = 'none'; }
@@ -957,8 +991,13 @@ function populateRightPanel(products) {
   const countEl = panel && panel.querySelector('.results-big-num');
   if (countEl) countEl.textContent = products.length;
 
+  const wl = getWishlist();
   list.innerHTML = '<div class="results-section-head">Cressi Picks</div>' +
     products.map((p, i) => {
+      const pLink = p.link || p.product_url || p.url || '';
+      const alreadySaved = wl.some(w => (w.link||w.product_url||w.url||'') === pLink);
+      const heartHtml = alreadySaved ? '♥' : '♡';
+      const heartStyle = alreadySaved ? 'color:var(--gold);opacity:1;' : '';
       const name   = p.name || p.title || '';
       const brand  = p.brand || p.source || p.store || '';
       const price  = p.price || '';
@@ -966,8 +1005,8 @@ function populateRightPanel(products) {
       const link   = p.product_url || p.link || p.url || '#';
       const isTop  = i === 0;
       const imgHtml = imgUrl
-        ? `<img src="${imgUrl}" alt="${name}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
-        : `<span style="font-size:28px">🛍️</span>`;
+        ? `<img src="${imgUrl}" alt="${name}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\\'font-size:24px;display:flex;align-items:center;justify-content:center;width:100%;height:100%\\'>🛍️</span>';">`
+        : `<span style="font-size:24px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">🛍️</span>`;
       return `
       <div class="prod-card" onclick="window.open('${link}','_blank')">
         <div class="prod-inner">
@@ -982,7 +1021,7 @@ function populateRightPanel(products) {
                 ${brand ? `<div class="prod-brand">${brand}</div>` : ''}
                 <div class="prod-name">${name}</div>
               </div>
-              <span class="prod-wish" title="Save to Wishlist">♡</span>
+              <span class="prod-wish" title="Save to Wishlist" style="${heartStyle}" onclick="event.stopPropagation();handleWishToggle(this,${i})">${heartHtml}</span>
             </div>
             <div class="prod-bottom">
               <div class="prod-price">${price}</div>
@@ -1221,5 +1260,190 @@ chatInput.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.pre
 document.querySelectorAll('.filter-tag').forEach(tag=>{
   tag.addEventListener('click',()=>{ document.querySelectorAll('.filter-tag').forEach(t=>t.classList.remove('on')); tag.classList.add('on'); });
 });
+
+// ══════════════════════════════════════════════
+// NAV SWITCHING
+// ══════════════════════════════════════════════
+const CHAT_MAIN = document.querySelector('main.chat-panel:not([id])');
+
+function switchNav(section) {
+  // Update active state on nav items
+  document.querySelectorAll('.nav-item[data-nav]').forEach(el => {
+    el.classList.toggle('active', el.dataset.nav === section);
+  });
+  // Hide all panels
+  const panels = ['wishlistPanel','profilePanel','historyPanel'];
+  panels.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  if (CHAT_MAIN) CHAT_MAIN.style.display = section === 'cressi' ? '' : 'none';
+  // Show the right panel
+  if (section === 'wishlist') {
+    document.getElementById('wishlistPanel').style.display = '';
+    renderWishlistPanel();
+  } else if (section === 'profile') {
+    document.getElementById('profilePanel').style.display = '';
+    renderProfilePanel();
+  } else if (section === 'history') {
+    document.getElementById('historyPanel').style.display = '';
+    renderHistoryPanel();
+  }
+}
+
+// ══════════════════════════════════════════════
+// WISHLIST
+// ══════════════════════════════════════════════
+const WISH_KEY = 'cressi_wishlist';
+
+function getWishlist() {
+  try { return JSON.parse(localStorage.getItem(WISH_KEY) || '[]'); } catch { return []; }
+}
+function saveWishlist(list) {
+  localStorage.setItem(WISH_KEY, JSON.stringify(list));
+  const badge = document.getElementById('wishBadge');
+  if (badge) badge.textContent = list.length;
+}
+
+function toggleWishlist(product, btn) {
+  let list = getWishlist();
+  const link = product.link || product.product_url || product.url || '';
+  const idx = list.findIndex(p => (p.link || p.product_url || p.url || '') === link);
+  if (idx >= 0) {
+    list.splice(idx, 1);
+    if (btn) { btn.textContent = '♡'; btn.style.color = ''; btn.style.opacity = '0.32'; }
+  } else {
+    list.push(product);
+    if (btn) { btn.textContent = '♥'; btn.style.color = 'var(--gold)'; btn.style.opacity = '1'; }
+  }
+  saveWishlist(list);
+}
+
+function isWishlisted(product) {
+  const link = product.link || product.product_url || product.url || '';
+  return getWishlist().some(p => (p.link || p.product_url || p.url || '') === link);
+}
+
+function renderWishlistPanel() {
+  const list = getWishlist();
+  const content = document.getElementById('wishlistContent');
+  const empty = document.getElementById('wishlistEmpty');
+  if (!list.length) {
+    if (content) content.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (!content) return;
+  content.innerHTML = list.map((p, i) => {
+    const name   = p.name || p.title || '';
+    const brand  = p.brand || p.source || p.store || '';
+    const price  = p.price || '';
+    const imgUrl = p.image_url || p.imageUrl || p.thumbnail || '';
+    const link   = p.link || p.product_url || p.url || '#';
+    const imgHtml = imgUrl
+      ? `<img src="${imgUrl}" alt="${name}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\\'font-size:24px;display:flex;align-items:center;justify-content:center;width:100%;height:100%\\'>🛍️</span>';">`
+      : `<span style="font-size:24px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">🛍️</span>`;
+    return `
+    <div class="prod-card" onclick="window.open('${link}','_blank')">
+      <div class="prod-inner">
+        <div class="prod-img" style="overflow:hidden;">${imgHtml}</div>
+        <div class="prod-info">
+          <div class="prod-top">
+            <div>
+              ${brand ? `<div class="prod-brand">${brand}</div>` : ''}
+              <div class="prod-name">${name}</div>
+            </div>
+            <span class="prod-wish" style="color:var(--gold);opacity:1;font-size:15px;" title="Remove from Wishlist"
+              onclick="event.stopPropagation();removeFromWishlistPanel(${i});this.closest('.prod-card').remove();">♥</span>
+          </div>
+          <div class="prod-bottom">
+            <div class="prod-price">${price}</div>
+            <button class="prod-shop" onclick="event.stopPropagation();window.open('${link}','_blank')">Shop →</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function removeFromWishlistPanel(index) {
+  let list = getWishlist();
+  list.splice(index, 1);
+  saveWishlist(list);
+  const empty = document.getElementById('wishlistEmpty');
+  if (!list.length && empty) empty.style.display = 'block';
+}
+
+// ══════════════════════════════════════════════
+// PROFILE PANEL
+// ══════════════════════════════════════════════
+function renderProfilePanel() {
+  const content = document.getElementById('profileContent');
+  if (!content) return;
+  const saved = localStorage.getItem(OB_KEY);
+  if (!saved) {
+    content.innerHTML = `<div style="color:var(--smoke);font-size:13px;">Complete the onboarding to build your taste profile.</div>`;
+    return;
+  }
+  const { fit, prices, style } = JSON.parse(saved);
+  const priceLabels = Object.entries(prices||{}).filter(([,v])=>v).map(([k])=>k);
+  content.innerHTML = `
+    <div style="max-width:440px;">
+      <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:var(--ink);margin-bottom:24px;">Your Taste Profile</div>
+      <div style="background:var(--linen);border-radius:8px;padding:20px 24px;margin-bottom:16px;">
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);margin-bottom:12px;">Style Words</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          ${(style||[]).map(s=>`<span style="background:var(--ink);color:var(--white);font-size:11px;padding:4px 12px;border-radius:100px;">${s}</span>`).join('')}
+        </div>
+      </div>
+      <div style="background:var(--linen);border-radius:8px;padding:20px 24px;margin-bottom:16px;">
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);margin-bottom:8px;">Fit Preference</div>
+        <div style="font-size:14px;color:var(--ink);">${fit||'—'}</div>
+      </div>
+      <div style="background:var(--linen);border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);margin-bottom:8px;">Price Range</div>
+        <div style="font-size:14px;color:var(--ink);">${priceLabels.join(' · ')||'—'}</div>
+      </div>
+      <button onclick="localStorage.removeItem('${OB_KEY}');location.reload();" style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;background:none;border:1px solid var(--border);padding:8px 18px;border-radius:4px;cursor:pointer;color:var(--smoke);">Reset Profile</button>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════
+// HISTORY PANEL
+// ══════════════════════════════════════════════
+function renderHistoryPanel() {
+  const content = document.getElementById('historyContent');
+  if (!content) return;
+  const searches = tasteProfile.recentSearches || [];
+  if (!searches.length) {
+    content.innerHTML = `<div style="color:var(--smoke);font-size:13px;">Your recent Cressi conversations will appear here.</div>`;
+    return;
+  }
+  content.innerHTML = `<div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:20px;">Recent Searches</div>` +
+    searches.slice().reverse().map(q => `
+    <div onclick="switchNav('cressi');setTimeout(()=>{chatInput.value='${q.replace(/'/g,"\\'")}';sendMsg();},100);"
+      style="padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;font-size:14px;color:var(--ink);">
+      <span style="opacity:0.4;margin-right:10px;">◷</span>${q}
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════
+// WIRE UP ♡ BUTTONS IN PRODUCT CARDS
+// ══════════════════════════════════════════════
+// Attach wishlist toggle to dynamically generated cards
+function attachWishBtn(btn, product) {
+  if (isWishlisted(product)) { btn.textContent = '♥'; btn.style.color = 'var(--gold)'; btn.style.opacity = '1'; }
+  btn.addEventListener('click', e => { e.stopPropagation(); toggleWishlist(product, btn); });
+}
+
+// Global product store so inline onclick can access product data by index
+window._wishProducts = [];
+
+function handleWishToggle(btn, idx) {
+  const product = window._wishProducts[idx];
+  if (!product) return;
+  toggleWishlist(product, btn);
+}
+
+// Update badge on load
+saveWishlist(getWishlist());
 </script>
 </body></html>
