@@ -374,17 +374,33 @@
 
     <span class="ob-eyebrow">Welcome to Cressi</span>
     <h1 class="ob-headline">Before we shop,<br><em>let's get to know you.</em></h1>
-    <p class="ob-subhead">Three quick questions. 90 seconds. Never asked again.</p>
+    <p class="ob-subhead">Four quick questions. Never asked again.</p>
 
     <!-- progress dots -->
     <div class="ob-dots">
       <div class="ob-dot active" id="dot0"></div>
       <div class="ob-dot" id="dot1"></div>
       <div class="ob-dot" id="dot2"></div>
+      <div class="ob-dot" id="dot3"></div>
     </div>
 
-    <!-- STEP 1: Fit Context -->
+    <!-- STEP 1: What do you shop for? -->
     <div class="ob-step active" id="step0">
+      <div class="ob-question">What do you<br><em>shop for?</em></div>
+      <div class="ob-chips" id="shopsForChips" style="margin-bottom:32px;">
+        <span class="ob-chip" onclick="selectShopsFor(this)">Women's</span>
+        <span class="ob-chip" onclick="selectShopsFor(this)">Men's</span>
+        <span class="ob-chip" onclick="selectShopsFor(this)">Both</span>
+        <span class="ob-chip" onclick="selectShopsFor(this)">Non-binary / All</span>
+      </div>
+      <div class="ob-nav">
+        <button class="ob-back invisible">← Back</button>
+        <button class="ob-next" onclick="goStep(1)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: Fit Context -->
+    <div class="ob-step" id="step1">
       <div class="ob-question">What fits you well — and what never does?<br><em>Pick everything that applies.</em></div>
       <div class="ob-chips" id="fitChips">
         <span class="ob-chip" onclick="toggleChip(this)">Petite frame</span>
@@ -399,13 +415,13 @@
         <span class="ob-chip" onclick="toggleChip(this)">Tops gap at the chest</span>
       </div>
       <div class="ob-nav">
-        <button class="ob-back invisible">← Back</button>
-        <button class="ob-next" onclick="goStep(1)">Continue →</button>
+        <button class="ob-back" onclick="goStep(0)">← Back</button>
+        <button class="ob-next" onclick="goStep(2)">Continue →</button>
       </div>
     </div>
 
-    <!-- STEP 2: Price Ranges -->
-    <div class="ob-step" id="step1">
+    <!-- STEP 3: Price Ranges -->
+    <div class="ob-step" id="step2">
       <div class="ob-question">What's your price range<br><em>for different categories?</em></div>
       <div class="ob-price-grid">
         <div class="ob-price-row">
@@ -434,13 +450,13 @@
         </div>
       </div>
       <div class="ob-nav">
-        <button class="ob-back" onclick="goStep(0)">← Back</button>
-        <button class="ob-next" onclick="goStep(2)">Continue →</button>
+        <button class="ob-back" onclick="goStep(1)">← Back</button>
+        <button class="ob-next" onclick="goStep(3)">Continue →</button>
       </div>
     </div>
 
-    <!-- STEP 3: Style in 3 words -->
-    <div class="ob-step" id="step2">
+    <!-- STEP 4: Style in 3 words -->
+    <div class="ob-step" id="step3">
       <div class="ob-question">Describe your style<br><em>in three words.</em></div>
       <span class="ob-style-hint">Pick from below — or type your own</span>
       <div class="ob-style-chips" id="styleChips">
@@ -459,7 +475,7 @@
       </div>
       <input class="ob-style-input" id="styleCustom" placeholder="Or type your own words..." />
       <div class="ob-nav" style="margin-top:18px;">
-        <button class="ob-back" onclick="goStep(1)">← Back</button>
+        <button class="ob-back" onclick="goStep(2)">← Back</button>
         <button class="ob-next" onclick="completeOnboarding()">Done — Let's Shop →</button>
       </div>
     </div>
@@ -656,7 +672,7 @@ let isStreaming      = false;
 // ONBOARDING
 // ══════════════════════════════════════════════
 const OB_KEY = 'cressi_onboarded';
-let selectedFit = [], selectedStyle = [], styleCount = 0;
+let selectedFit = [], selectedStyle = [], styleCount = 0, selectedShopsFor = 'Women\'s';
 
 window.addEventListener('DOMContentLoaded', () => {
   if (localStorage.getItem(OB_KEY)) document.getElementById('obOverlay').classList.add('hidden');
@@ -667,11 +683,18 @@ window.addEventListener('DOMContentLoaded', () => {
 function goStep(n) {
   document.querySelectorAll('.ob-step').forEach(s => s.classList.remove('active'));
   document.getElementById('step' + n).classList.add('active');
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const d = document.getElementById('dot' + i);
+    if (!d) continue;
     d.classList.remove('active','done');
     if (i < n) d.classList.add('done'); else if (i === n) d.classList.add('active');
   }
+}
+
+function selectShopsFor(el) {
+  document.querySelectorAll('#shopsForChips .ob-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedShopsFor = el.textContent;
 }
 
 function toggleChip(el) {
@@ -693,15 +716,16 @@ function completeOnboarding() {
     Dresses: document.getElementById('priceDresses').value||'—', Bags: document.getElementById('priceBags').value||'—',
     Shoes: document.getElementById('priceShoes').value||'—', Outerwear: document.getElementById('priceOuter').value||'—',
   };
-  tasteProfile.fitNotes = selectedFit.join(', ')||'—';
+  tasteProfile.shopsFor    = selectedShopsFor || 'Women\'s';
+  tasteProfile.fitNotes    = selectedFit.join(', ')||'—';
   tasteProfile.priceRanges = prices;
-  tasteProfile.styleWords = selectedStyle.length ? selectedStyle : ['—'];
-  localStorage.setItem(OB_KEY, JSON.stringify({fit:tasteProfile.fitNotes, prices, style:tasteProfile.styleWords}));
+  tasteProfile.styleWords  = selectedStyle.length ? selectedStyle : ['—'];
+  localStorage.setItem(OB_KEY, JSON.stringify({shopsFor:tasteProfile.shopsFor, fit:tasteProfile.fitNotes, prices, style:tasteProfile.styleWords}));
   document.getElementById('obSummary').innerHTML = `
-    <div class="ob-summary-row"><span class="ob-summary-key">Fit notes</span><span class="ob-summary-val">${tasteProfile.fitNotes}</span></div>
+    <div class="ob-summary-row"><span class="ob-summary-key">Shopping for</span><span class="ob-summary-val">${tasteProfile.shopsFor}</span></div>
     <div class="ob-summary-row"><span class="ob-summary-key">Style</span><span class="ob-summary-val">${tasteProfile.styleWords.join(' · ')}</span></div>
+    <div class="ob-summary-row"><span class="ob-summary-key">Fit notes</span><span class="ob-summary-val">${tasteProfile.fitNotes}</span></div>
     <div class="ob-summary-row"><span class="ob-summary-key">Jeans budget</span><span class="ob-summary-val">${prices.Jeans}</span></div>
-    <div class="ob-summary-row"><span class="ob-summary-key">Bags budget</span><span class="ob-summary-val">${prices.Bags}</span></div>
     <div class="ob-summary-row"><span class="ob-summary-key">Dresses budget</span><span class="ob-summary-val">${prices.Dresses}</span></div>`;
   document.querySelector('.ob-dots').style.display = 'none';
   document.querySelectorAll('.ob-step').forEach(s => s.classList.remove('active'));
@@ -719,7 +743,7 @@ function resetOnboarding() { localStorage.removeItem(OB_KEY); location.reload();
 // ══════════════════════════════════════════════
 // TASTE MEMORY
 // ══════════════════════════════════════════════
-const tasteProfile = { priceRanges:{}, styleWords:[], fitNotes:'', recentSearches:[] };
+const tasteProfile = { shopsFor:'Women\'s', priceRanges:{}, styleWords:[], fitNotes:'', recentSearches:[] };
 
 // ══════════════════════════════════════════════
 // UI
@@ -782,12 +806,17 @@ function buildTasteContext() {
   const saved = localStorage.getItem(OB_KEY);
   if (!saved) return '';
   try {
-    const { fit, prices, style } = JSON.parse(saved);
+    const { shopsFor, fit, prices, style } = JSON.parse(saved);
+    if (shopsFor) {
+      tasteProfile.shopsFor = shopsFor;
+      selectedShopsFor = shopsFor;
+    }
     const priceLines = Object.entries(prices||{})
       .filter(([,v]) => v && v !== '—')
       .map(([k,v]) => `${k}: ${v}`)
       .join(', ');
     return [
+      shopsFor        ? `Shopping for: ${shopsFor}` : '',
       style?.length   ? `Style identity: ${style.join(', ')}` : '',
       fit             ? `Fit notes: ${fit}` : '',
       priceLines      ? `Budget ranges — ${priceLines}` : '',
@@ -1402,6 +1431,13 @@ function renderProfilePanel() {
       <div style="font-size:12px;color:var(--smoke);margin-bottom:28px;">Tap anything to edit — saves automatically.</div>
 
       <div style="margin-bottom:28px;">
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);margin-bottom:12px;">Shopping for</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;" id="editShopsForChips">
+          ${['Women\'s','Men\'s','Both','Non-binary / All'].map(o => `<span class="ob-chip${(shopsFor||'Women\'s')===o?' selected':''}" onclick="editSelectShopsFor(this)">${o}</span>`).join('')}
+        </div>
+      </div>
+
+      <div style="margin-bottom:28px;">
         <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);margin-bottom:12px;">Body &amp; Fit Notes</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;" id="editFitChips">
           ${FIT_OPTIONS.map(f => `<span class="ob-chip${currentFit.includes(f)?' selected':''}" onclick="editToggleFit(this)">${f}</span>`).join('')}
@@ -1437,6 +1473,12 @@ function renderProfilePanel() {
     </div>`;
 }
 
+function editSelectShopsFor(el) {
+  document.querySelectorAll('#editShopsForChips .ob-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  editSaveProfile();
+}
+
 function editToggleFit(el) {
   el.classList.toggle('selected');
   editSaveProfile();
@@ -1454,10 +1496,12 @@ function editToggleStyle(el) {
 }
 
 function editSaveProfile() {
-  const fitArr   = [...document.querySelectorAll('#editFitChips .ob-chip.selected')].map(c => c.textContent);
-  const styleArr = [...document.querySelectorAll('#editStyleChips .ob-chip.selected')].map(c => c.textContent);
-  const custom   = (document.getElementById('editStyleCustom')?.value||'').trim();
-  const allStyle = custom ? custom.split(/[,\s]+/).filter(Boolean).slice(0,3) : styleArr;
+  const shopsForEl = document.querySelector('#editShopsForChips .ob-chip.selected');
+  const shopsFor   = shopsForEl ? shopsForEl.textContent : (tasteProfile.shopsFor || 'Women\'s');
+  const fitArr     = [...document.querySelectorAll('#editFitChips .ob-chip.selected')].map(c => c.textContent);
+  const styleArr   = [...document.querySelectorAll('#editStyleChips .ob-chip.selected')].map(c => c.textContent);
+  const custom     = (document.getElementById('editStyleCustom')?.value||'').trim();
+  const allStyle   = custom ? custom.split(/[,\s]+/).filter(Boolean).slice(0,3) : styleArr;
   const prices = {
     Jeans:     document.getElementById('epJeans')?.value  || '—',
     Tops:      document.getElementById('epTops')?.value   || '—',
@@ -1466,11 +1510,13 @@ function editSaveProfile() {
     Shoes:     document.getElementById('epShoes')?.value  || '—',
     Outerwear: document.getElementById('epOuter')?.value  || '—',
   };
-  const profile = { fit: fitArr.join(', ')||'—', prices, style: allStyle.length ? allStyle : styleArr };
+  const profile = { shopsFor, fit: fitArr.join(', ')||'—', prices, style: allStyle.length ? allStyle : styleArr };
   localStorage.setItem(OB_KEY, JSON.stringify(profile));
+  tasteProfile.shopsFor    = shopsFor;
   tasteProfile.fitNotes    = profile.fit;
   tasteProfile.priceRanges = prices;
   tasteProfile.styleWords  = profile.style;
+  selectedShopsFor         = shopsFor;
 }
 
 // ══════════════════════════════════════════════
