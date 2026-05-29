@@ -628,13 +628,6 @@
           <div><div class="results-big-num">0</div><div class="results-big-label">Pieces found</div></div>
           <button class="results-sort-btn">Sort ↕</button>
         </div>
-        <div class="results-filters">
-          <span class="filter-tag on">All</span>
-          <span class="filter-tag">Dresses</span>
-          <span class="filter-tag">Blazers</span>
-          <span class="filter-tag">Under $600</span>
-          <span class="filter-tag">In Stock</span>
-        </div>
       </div>
       <div class="results-list">
       </div>
@@ -1373,37 +1366,111 @@ function removeFromWishlistPanel(index) {
 }
 
 // ══════════════════════════════════════════════
-// PROFILE PANEL
+// PROFILE PANEL — EDITABLE
 // ══════════════════════════════════════════════
+const FIT_OPTIONS = ['Petite frame','Tall / long torso','Curvy through the hip','Straight up and down','Broad shoulders','Narrow shoulders','Jeans never fit right','Sleeves always too long','Waist fits but hips don\'t','Tops gap at the chest'];
+const STYLE_OPTIONS = ['Classic','Modern','Polished','Minimal','Edgy','Romantic','Relaxed','Elevated','Bold','Understated','Effortless','Sculptural'];
+
 function renderProfilePanel() {
   const content = document.getElementById('profileContent');
   if (!content) return;
   const saved = localStorage.getItem(OB_KEY);
+
   if (!saved) {
-    content.innerHTML = `<div style="color:var(--smoke);font-size:13px;">Complete the onboarding to build your taste profile.</div>`;
+    content.innerHTML = `
+      <div style="text-align:center;padding:60px 20px;">
+        <div style="font-size:28px;margin-bottom:16px;">◈</div>
+        <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:8px;">No profile yet</div>
+        <div style="font-size:13px;color:var(--smoke);margin-bottom:24px;">Set up your taste profile so Cressi can recommend better.</div>
+        <button onclick="document.getElementById('obOverlay').classList.remove('hidden');switchNav('cressi');"
+          style="background:var(--ink);color:var(--white);border:none;padding:12px 24px;border-radius:4px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">
+          Set Up Profile
+        </button>
+      </div>`;
     return;
   }
+
   const { fit, prices, style } = JSON.parse(saved);
-  const priceLabels = Object.entries(prices||{}).filter(([,v])=>v).map(([k])=>k);
+  const currentFit   = (fit||'').split(', ').filter(f => f && f !== '—');
+  const currentStyle = Array.isArray(style) ? style.filter(s => s && s !== '—') : [];
+  const customStyle  = currentStyle.filter(s => !STYLE_OPTIONS.includes(s));
+  const chipStyle    = currentStyle.filter(s => STYLE_OPTIONS.includes(s));
+
   content.innerHTML = `
-    <div style="max-width:440px;">
-      <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:var(--ink);margin-bottom:24px;">Your Taste Profile</div>
-      <div style="background:var(--linen);border-radius:8px;padding:20px 24px;margin-bottom:16px;">
-        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);margin-bottom:12px;">Style Words</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          ${(style||[]).map(s=>`<span style="background:var(--ink);color:var(--white);font-size:11px;padding:4px 12px;border-radius:100px;">${s}</span>`).join('')}
+    <div style="max-width:480px;padding-bottom:40px;">
+      <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:var(--ink);margin-bottom:4px;">Your Taste Profile</div>
+      <div style="font-size:12px;color:var(--smoke);margin-bottom:28px;">Tap anything to edit — saves automatically.</div>
+
+      <div style="margin-bottom:28px;">
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);margin-bottom:12px;">Body &amp; Fit Notes</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;" id="editFitChips">
+          ${FIT_OPTIONS.map(f => `<span class="ob-chip${currentFit.includes(f)?' selected':''}" onclick="editToggleFit(this)">${f}</span>`).join('')}
         </div>
       </div>
-      <div style="background:var(--linen);border-radius:8px;padding:20px 24px;margin-bottom:16px;">
-        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);margin-bottom:8px;">Fit Preference</div>
-        <div style="font-size:14px;color:var(--ink);">${fit||'—'}</div>
+
+      <div style="margin-bottom:28px;">
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);margin-bottom:12px;">Style Words <span style="opacity:0.45;font-size:9px;">(pick up to 3)</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;" id="editStyleChips">
+          ${STYLE_OPTIONS.map(s => `<span class="ob-chip${chipStyle.includes(s)?' selected':''}" onclick="editToggleStyle(this)">${s}</span>`).join('')}
+        </div>
+        <input id="editStyleCustom" class="ob-style-input" placeholder="Or type your own words..."
+          value="${customStyle.join(', ')}" oninput="editSaveProfile()"
+          style="width:100%;box-sizing:border-box;" />
       </div>
-      <div style="background:var(--linen);border-radius:8px;padding:20px 24px;margin-bottom:24px;">
-        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);margin-bottom:8px;">Price Range</div>
-        <div style="font-size:14px;color:var(--ink);">${priceLabels.join(' · ')||'—'}</div>
+
+      <div style="margin-bottom:32px;">
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);margin-bottom:12px;">Price Ranges</div>
+        <div class="ob-price-grid">
+          <div class="ob-price-row"><span class="ob-price-label">Jeans</span><input class="ob-price-input" id="epJeans" value="${(prices&&prices.Jeans&&prices.Jeans!=='—')?prices.Jeans:''}" placeholder="e.g. $150–$300" oninput="editSaveProfile()" /></div>
+          <div class="ob-price-row"><span class="ob-price-label">Tops &amp; Blouses</span><input class="ob-price-input" id="epTops" value="${(prices&&prices.Tops&&prices.Tops!=='—')?prices.Tops:''}" placeholder="e.g. $80–$200" oninput="editSaveProfile()" /></div>
+          <div class="ob-price-row"><span class="ob-price-label">Dresses</span><input class="ob-price-input" id="epDresses" value="${(prices&&prices.Dresses&&prices.Dresses!=='—')?prices.Dresses:''}" placeholder="e.g. $200–$600" oninput="editSaveProfile()" /></div>
+          <div class="ob-price-row"><span class="ob-price-label">Bags</span><input class="ob-price-input" id="epBags" value="${(prices&&prices.Bags&&prices.Bags!=='—')?prices.Bags:''}" placeholder="e.g. up to $800" oninput="editSaveProfile()" /></div>
+          <div class="ob-price-row"><span class="ob-price-label">Shoes</span><input class="ob-price-input" id="epShoes" value="${(prices&&prices.Shoes&&prices.Shoes!=='—')?prices.Shoes:''}" placeholder="e.g. $150–$500" oninput="editSaveProfile()" /></div>
+          <div class="ob-price-row"><span class="ob-price-label">Outerwear</span><input class="ob-price-input" id="epOuter" value="${(prices&&prices.Outerwear&&prices.Outerwear!=='—')?prices.Outerwear:''}" placeholder="e.g. up to $1,200" oninput="editSaveProfile()" /></div>
+        </div>
       </div>
-      <button onclick="localStorage.removeItem('${OB_KEY}');location.reload();" style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;background:none;border:1px solid var(--border);padding:8px 18px;border-radius:4px;cursor:pointer;color:var(--smoke);">Reset Profile</button>
+
+      <button onclick="localStorage.removeItem('${OB_KEY}');location.reload();"
+        style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;background:none;border:1px solid var(--border);padding:8px 18px;border-radius:4px;cursor:pointer;color:var(--smoke);">
+        Reset &amp; Redo Onboarding
+      </button>
     </div>`;
+}
+
+function editToggleFit(el) {
+  el.classList.toggle('selected');
+  editSaveProfile();
+}
+
+function editToggleStyle(el) {
+  if (el.classList.contains('selected')) {
+    el.classList.remove('selected');
+  } else {
+    const sel = document.querySelectorAll('#editStyleChips .ob-chip.selected');
+    if (sel.length >= 3) sel[0].classList.remove('selected');
+    el.classList.add('selected');
+  }
+  editSaveProfile();
+}
+
+function editSaveProfile() {
+  const fitArr   = [...document.querySelectorAll('#editFitChips .ob-chip.selected')].map(c => c.textContent);
+  const styleArr = [...document.querySelectorAll('#editStyleChips .ob-chip.selected')].map(c => c.textContent);
+  const custom   = (document.getElementById('editStyleCustom')?.value||'').trim();
+  const allStyle = custom ? custom.split(/[,\s]+/).filter(Boolean).slice(0,3) : styleArr;
+  const prices = {
+    Jeans:     document.getElementById('epJeans')?.value  || '—',
+    Tops:      document.getElementById('epTops')?.value   || '—',
+    Dresses:   document.getElementById('epDresses')?.value|| '—',
+    Bags:      document.getElementById('epBags')?.value   || '—',
+    Shoes:     document.getElementById('epShoes')?.value  || '—',
+    Outerwear: document.getElementById('epOuter')?.value  || '—',
+  };
+  const profile = { fit: fitArr.join(', ')||'—', prices, style: allStyle.length ? allStyle : styleArr };
+  localStorage.setItem(OB_KEY, JSON.stringify(profile));
+  tasteProfile.fitNotes    = profile.fit;
+  tasteProfile.priceRanges = prices;
+  tasteProfile.styleWords  = profile.style;
 }
 
 // ══════════════════════════════════════════════
