@@ -939,10 +939,18 @@ function parseProducts(text) {
   return { products: products.slice(0,3), cleanText };
 }
 
+function stripMd(s) { return (s||'').replace(/\*\*/g,'').replace(/\*/g,'').trim(); }
+
 function renderProductCards(products) {
   if (!products.length) return '';
   const emojis = ['🧥','👗','✨','👜','👠','🧣'];
-  const cards = products.map((p, i) => `
+  const cards = products.map((p, i) => {
+    const brand    = stripMd(p.brand);
+    const name     = stripMd(p.name);
+    const retailer = stripMd(p.retailer);
+    const price    = p.price || '';
+    const rationale= stripMd(p.rationale);
+    return `
     <div class="resp-card ${i===0?'resp-card-top':''}">
       <div class="resp-card-img">
         ${i===0 ? '<div class="resp-pick-line"></div>' : ''}
@@ -950,14 +958,15 @@ function renderProductCards(products) {
         ${i===0 ? '<span class="resp-pick-badge">✦ Top Pick</span>' : ''}
       </div>
       <div class="resp-card-body">
-        ${p.retailer ? `<div class="resp-card-retailer">${p.retailer}</div>` : ''}
-        <div class="resp-card-brand">${p.brand}</div>
-        <div class="resp-card-name">${p.name}</div>
-        ${p.price ? `<div class="resp-card-price">${p.price}</div>` : ''}
-        ${p.rationale ? `<div class="resp-card-rationale">${p.rationale}</div>` : ''}
-        <button class="resp-card-btn" onclick="sendChip('Tell me more about the ${p.brand} ${p.name}')">Details →</button>
+        ${retailer ? `<div class="resp-card-retailer">${retailer}</div>` : ''}
+        <div class="resp-card-brand">${brand}</div>
+        <div class="resp-card-name">${name}</div>
+        ${price ? `<div class="resp-card-price">${price}</div>` : ''}
+        ${rationale ? `<div class="resp-card-rationale">${rationale}</div>` : ''}
+        <button class="resp-card-btn" onclick="sendChip('Tell me more about the ${brand} ${name}')">Details →</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   return `<div class="resp-cards">${cards}</div>`;
 }
 
@@ -1186,6 +1195,22 @@ async function sendMsg(imageUrl) {
     }
 
     if (fullText) saveMessage({role:'Ai', message:fullText, chatUuid:currentThreadId});
+
+    // If no Serper products chunk arrived, populate right panel from PRODUCT: lines in text
+    if (fullText && !resActive.classList.contains('visible')) {
+      const { products: textProds } = parseProducts(fullText);
+      if (textProds && textProds.length) {
+        populateRightPanel(textProds.map(p => ({
+          title:    p.name.replace(/\*\*/g,''),
+          brand:    (p.brand||p.retailer||'').replace(/\*\*/g,''),
+          source:   (p.retailer||'').replace(/\*\*/g,''),
+          price:    p.price,
+          imageUrl: '',
+          link:     '#',
+        })));
+      }
+    }
+
     setTimeout(()=>addFollowUpChips(aiBlock),300);
 
   } catch(err) {
