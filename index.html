@@ -482,7 +482,10 @@
       <div class="nav-item" style="opacity:0.35;cursor:default;pointer-events:none;"><span class="nav-icon">◻</span><span class="nav-label">Shop for Others</span><span style="margin-left:auto;font-size:6px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);opacity:0.6;">Soon</span></div>
       <div class="nav-item" data-nav="history" onclick="switchNav('history')"><span class="nav-icon">◷</span><span class="nav-label">Chat History</span></div>
     </div>
-    <span class="recents-label">Recent</span>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 18px 6px;">
+      <span class="recents-label" style="padding:0;">Recent</span>
+      <button onclick="clearChat()" style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--smoke);opacity:0.5;background:none;border:none;cursor:pointer;padding:2px 0;font-family:'Cormorant Garamond',serif;transition:opacity 0.15s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">+ New</button>
+    </div>
     <div class="recent-list" id="sidebarRecentList"></div>
     <div class="sidebar-user">
       <div class="user-avatar">E</div>
@@ -495,10 +498,10 @@
     <div class="chat-topbar">
       <div class="topbar-left">
         <div class="status-dot"></div>
-        <span class="topbar-title">New conversation</span>
+        <span class="topbar-title" id="topbarTitle">New conversation</span>
       </div>
       <div class="topbar-actions">
-        <button class="topbar-btn" onclick="clearChat()">Clear</button>
+        <button class="topbar-btn" onclick="clearChat()" id="newChatBtn" style="display:none;">+ New Conversation</button>
         <button class="topbar-btn">Share</button>
       </div>
     </div>
@@ -718,7 +721,7 @@ function saveConvSnapshot() {
   } catch(e) { console.warn('[Cressi] Conv save failed', e); }
 }
 
-function restoreConv(threadId) {
+function restoreConv(threadId, query) {
   try {
     const convs = JSON.parse(localStorage.getItem(CONV_KEY)||'{}');
     const conv = convs[threadId];
@@ -730,6 +733,7 @@ function restoreConv(threadId) {
     currentThreadId = threadId;
     firstMsg = false;
     isStreaming = false;
+    setTopbar(query || conv.query || '');
     scrollBottom();
     return true;
   } catch(e) { return false; }
@@ -740,7 +744,7 @@ function replayQuery(q) {
   // Try to restore saved conversation first
   const hist = getHistory();
   const entry = hist.find(h => h.query === q);
-  if (entry && entry.threadId && restoreConv(entry.threadId)) return;
+  if (entry && entry.threadId && restoreConv(entry.threadId, q)) return;
   // Fall back to re-sending
   setTimeout(() => { chatInput.value = q; sendMsg(); }, 80);
 }
@@ -771,8 +775,19 @@ function usePrompt(el) {
 
 function scrollBottom() { msgsView.scrollTop = msgsView.scrollHeight; }
 
+function setTopbar(query) {
+  const title = document.getElementById('topbarTitle');
+  const btn   = document.getElementById('newChatBtn');
+  if (query) {
+    if (title) title.textContent = query.length > 42 ? query.slice(0,39)+'…' : query;
+    if (btn)   btn.style.display = '';
+  } else {
+    if (title) title.textContent = 'New conversation';
+    if (btn)   btn.style.display = 'none';
+  }
+}
+
 function clearChat() {
-  // Reset chat
   msgsView.innerHTML = '';
   msgsView.style.display = 'none';
   welcomeView.style.display = '';
@@ -781,6 +796,8 @@ function clearChat() {
   firstMsg = true;
   currentThreadId = null;
   isStreaming = false;
+  setTopbar(null);
+  switchNav('cressi');
 }
 
 function showChat() {
@@ -1213,6 +1230,7 @@ async function sendMsg(imageUrl) {
   showChat();
   tasteProfile.recentSearches.push(val);
   addHistory(val);
+  setTopbar(val);
 
   // User bubble
   const userBlock = document.createElement('div');
