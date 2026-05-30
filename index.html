@@ -948,8 +948,8 @@ function renderProductCards(products) {
     const rationale= stripMd(p.rationale);
     const initial  = (brand || name || '✦').charAt(0).toUpperCase();
     return `
-    <div class="resp-card ${i===0?'resp-card-top':''}">
-      <div class="resp-card-img" style="background:var(--linen-mid);">
+    <div class="resp-card ${i===0?'resp-card-top':''}" data-enrichable="true" data-brand="${brand.replace(/"/g,'&quot;')}" data-name="${name.replace(/"/g,'&quot;')}" data-retailer="${retailer.replace(/"/g,'&quot;')}">
+      <div class="resp-card-img" style="background:var(--linen-mid);position:relative;overflow:hidden;">
         ${i===0 ? '<div class="resp-pick-line"></div>' : ''}
         <span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--border-med);opacity:0.6;">${initial}</span>
         ${i===0 ? '<span class="resp-pick-badge">✦ Top Pick</span>' : ''}
@@ -1052,6 +1052,68 @@ async function streamCressi({prompt, imageUrl}) {
 }
 
 // ══════════════════════════════════════════════
+// BACKGROUND SERPER ENRICHMENT
+// Fires silent calls for text-parsed product cards to get real images + links
+// ══════════════════════════════════════════════
+async function enrichOneCard(cardEl, brand, name) {
+  try {
+    if (!document.contains(cardEl)) return;
+    const query = `find me ${brand} ${name}`;
+    const res = await fetch(API.chatbot, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ prompt: query, user_id: currentUserId||1, thread_id:'', s3_image_url:'', shop_for_others:false })
+    });
+    if (!res.ok) return;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (raw === '[DONE]') { try { reader.cancel(); } catch(e){} return; }
+        try {
+          const p = JSON.parse(raw);
+          if (p.type === 'products' && Array.isArray(p.content) && p.content.length) {
+            try { reader.cancel(); } catch(e){}
+            if (!document.contains(cardEl)) return;
+            const prod = p.content[0];
+            const imgUrl = prod.image_url || prod.imageUrl || prod.thumbnail || '';
+            const link   = prod.product_url || prod.link || prod.url || '';
+            if (imgUrl) {
+              const proxied = `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl)}&w=200&h=200&fit=cover&output=jpg`;
+              const imgBox = cardEl.querySelector('.resp-card-img');
+              if (imgBox) {
+                const img = document.createElement('img');
+                img.src = proxied;
+                img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;';
+                img.onerror = () => img.remove();
+                imgBox.appendChild(img);
+              }
+            }
+            if (link) {
+              const btn = cardEl.querySelector('.resp-card-btn');
+              if (btn) { btn.onclick = (e) => { e.stopPropagation(); window.open(link,'_blank'); }; }
+            }
+            return;
+          }
+        } catch(e) {}
+      }
+    }
+  } catch(e) { console.warn('[Enrich] failed for', brand, name); }
+}
+
+function enrichTextProducts(bubble) {
+  bubble.querySelectorAll('[data-enrichable="true"]').forEach(card => {
+    enrichOneCard(card, card.dataset.brand||'', card.dataset.name||'');
+  });
+}
+
+// ══════════════════════════════════════════════
 // MAIN SEND
 // ══════════════════════════════════════════════
 async function sendMsg(imageUrl) {
@@ -1089,7 +1151,7 @@ async function sendMsg(imageUrl) {
 
     const decoder = new TextDecoder();
     let fullText='', done=false, streamBuffer='';
-    let chunkCount = 0;
+    let chunkCount = 0, hasRealProducts = false;
 
     while (!done) {
       const {value, done:sd} = await reader.read();
@@ -1114,10 +1176,11 @@ async function sendMsg(imageUrl) {
             bubble.innerHTML = formatResponse(fullText);
             scrollBottom();
           } else if (p.type === 'products' && p.content) {
-            // Real Serper products — render in chat bubble AND right panel
+            // Real Serper products — render in chat bubble
             const prods = Array.isArray(p.content) ? p.content : [];
             console.log('[Cressi] products received:', prods.length);
             if (prods.length) {
+              hasRealProducts = true;
               const cards = renderRealProducts(prods);
               const existing = bubble.querySelector('.resp-cards');
               if (existing) existing.remove();
@@ -1141,6 +1204,8 @@ async function sendMsg(imageUrl) {
 
     if (fullText) saveMessage({role:'Ai', message:fullText, chatUuid:currentThreadId});
 
+    // If only text products (no Serper chunk), silently enrich them with real images + links
+    if (!hasRealProducts) enrichTextProducts(bubble);
 
     setTimeout(()=>addFollowUpChips(aiBlock),300);
 
