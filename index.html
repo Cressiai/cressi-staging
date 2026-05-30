@@ -910,7 +910,7 @@ function renderProductCards(products) {
     const brand    = stripMd(p.brand);
     const name     = stripMd(p.name);
     const retailer = stripMd(p.retailer);
-    const price    = p.price || '';
+    const price    = stripMd(p.price || '');
     const rationale= stripMd(p.rationale);
     const initial  = (brand || name || '✦').charAt(0).toUpperCase();
     return `
