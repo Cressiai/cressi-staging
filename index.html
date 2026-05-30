@@ -510,13 +510,7 @@
       <div class="nav-item" data-nav="history" onclick="switchNav('history')"><span class="nav-icon">◷</span><span class="nav-label">Chat History</span></div>
     </div>
     <span class="recents-label">Recent</span>
-    <div class="recent-list">
-      <div class="recent-item"><span class="recent-text">looking for new jeans</span></div>
-      <div class="recent-item"><span class="recent-text">dress for a wedding in South of France</span></div>
-      <div class="recent-item"><span class="recent-text">bags trending this summer</span></div>
-      <div class="recent-item"><span class="recent-text">editorial look for a brand shoot</span></div>
-      <div class="recent-item"><span class="recent-text">elevated evening, not black</span></div>
-    </div>
+    <div class="recent-list" id="sidebarRecentList"></div>
     <div class="sidebar-user">
       <div class="user-avatar">E</div>
       <div><div class="user-name">Erin</div><div class="user-tier">Pro Member</div></div>
@@ -677,6 +671,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (localStorage.getItem(OB_KEY)) document.getElementById('obOverlay').classList.add('hidden');
   const u = getUser();
   if (u) currentUserId = u.id || u.user_id || null;
+  renderSidebarRecent();
 });
 
 function goStep(n) {
@@ -743,6 +738,26 @@ function resetOnboarding() { localStorage.removeItem(OB_KEY); location.reload();
 // TASTE MEMORY
 // ══════════════════════════════════════════════
 const tasteProfile = { shopsFor:'Women\'s', priceRanges:{}, styleWords:[], fitNotes:'', recentSearches:[] };
+
+// ── HISTORY ──────────────────────────────────
+const HIST_KEY = 'cressi_history'; // [{query, ts}]
+function getHistory() { try { return JSON.parse(localStorage.getItem(HIST_KEY)||'[]'); } catch { return []; } }
+function addHistory(query) {
+  const hist = getHistory().filter(h => h.query !== query); // dedupe
+  hist.unshift({ query, ts: Date.now() });
+  localStorage.setItem(HIST_KEY, JSON.stringify(hist.slice(0, 50))); // cap at 50
+  renderSidebarRecent();
+}
+function renderSidebarRecent() {
+  const list = document.getElementById('sidebarRecentList');
+  if (!list) return;
+  const hist = getHistory();
+  if (!hist.length) { list.innerHTML = ''; return; }
+  list.innerHTML = hist.slice(0, 8).map(h => `
+    <div class="recent-item" onclick="switchNav('cressi');setTimeout(()=>{ chatInput.value=${JSON.stringify(h.query)};sendMsg(); },80);">
+      <span class="recent-text">${h.query}</span>
+    </div>`).join('');
+}
 
 // ══════════════════════════════════════════════
 // UI
@@ -1115,6 +1130,7 @@ async function sendMsg(imageUrl) {
   isStreaming = true;
   showChat();
   tasteProfile.recentSearches.push(val);
+  addHistory(val);
 
   // User bubble
   const userBlock = document.createElement('div');
@@ -1572,16 +1588,35 @@ function editSaveProfile() {
 function renderHistoryPanel() {
   const content = document.getElementById('historyContent');
   if (!content) return;
-  const searches = tasteProfile.recentSearches || [];
-  if (!searches.length) {
-    content.innerHTML = `<div style="color:var(--smoke);font-size:13px;">Your recent Cressi conversations will appear here.</div>`;
+  const hist = getHistory();
+  if (!hist.length) {
+    content.innerHTML = `
+      <div style="text-align:center;padding:80px 20px;">
+        <div style="font-size:28px;margin-bottom:12px;opacity:0.3;">◷</div>
+        <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px;">No history yet</div>
+        <div style="font-size:13px;color:var(--smoke);">Your searches will appear here as you shop.</div>
+      </div>`;
     return;
   }
-  content.innerHTML = `<div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:20px;">Recent Searches</div>` +
-    searches.slice().reverse().map(q => `
-    <div onclick="switchNav('cressi');setTimeout(()=>{chatInput.value='${q.replace(/'/g,"\\'")}';sendMsg();},100);"
-      style="padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;font-size:14px;color:var(--ink);">
-      <span style="opacity:0.4;margin-right:10px;">◷</span>${q}
+  const fmt = ts => {
+    const d = new Date(ts), now = new Date();
+    const diff = now - d;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return Math.floor(diff/60000) + 'm ago';
+    if (diff < 86400000) return Math.floor(diff/3600000) + 'h ago';
+    return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  };
+  content.innerHTML = `
+    <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--ink);margin-bottom:20px;">Search History</div>
+    <button onclick="localStorage.removeItem('${HIST_KEY}');renderHistoryPanel();renderSidebarRecent();"
+      style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;background:none;border:1px solid var(--border);padding:5px 14px;border-radius:4px;cursor:pointer;color:var(--smoke);margin-bottom:20px;">
+      Clear History
+    </button>` +
+    hist.map(h => `
+    <div onclick="switchNav('cressi');setTimeout(()=>{ chatInput.value=${JSON.stringify(h.query)};sendMsg(); },80);"
+      style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);cursor:pointer;gap:12px;">
+      <div style="font-size:14px;color:var(--ink);font-family:'Cormorant Garamond',serif;font-style:italic;">${h.query}</div>
+      <div style="font-size:10px;color:var(--smoke);opacity:0.5;flex-shrink:0;">${fmt(h.ts)}</div>
     </div>`).join('');
 }
 
