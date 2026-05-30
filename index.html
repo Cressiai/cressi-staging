@@ -978,7 +978,7 @@ function renderProductCards(products) {
         <div class="resp-card-name">${name}</div>
         ${price ? `<div class="resp-card-price">${price}</div>` : ''}
         ${rationale ? `<div class="resp-card-rationale">${rationale}</div>` : ''}
-        <button class="resp-card-btn" onclick="sendChip('Tell me more about the ${brand} ${name}')">Details →</button>
+        <button class="resp-card-btn" onclick="window.open('https://www.google.com/search?tbm=shop&q='+encodeURIComponent('${brand} ${name}'),'_blank')">Shop →</button>
       </div>
     </div>`;
   }).join('');
@@ -1024,9 +1024,10 @@ function renderRealProducts(products) {
     const imgUrl    = p.image_url || p.imageUrl || p.thumbnail || '';
     const link      = p.product_url || p.link || p.url || '#';
     const isTop     = i === 0;
+    const _initial  = (brand || name || '✦').charAt(0).toUpperCase();
     const imgHtml   = imgUrl
       ? `<img src="${imgUrl}" alt="${name}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
-      : `<span style="font-size:24px">🛍️</span>`;
+      : `<span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--border-med);opacity:0.6;">${_initial}</span>`;
     return `
     <div class="resp-card ${isTop ? 'resp-card-top' : ''}">
       <div class="resp-card-img" style="overflow:hidden;">
@@ -1066,15 +1067,16 @@ function populateRightPanel(products) {
       const alreadySaved = wl.some(w => (w.link||w.product_url||w.url||'') === pLink);
       const heartHtml = alreadySaved ? '♥' : '♡';
       const heartStyle = alreadySaved ? 'color:var(--gold);opacity:1;' : '';
-      const name   = p.name || p.title || '';
-      const brand  = p.brand || p.source || p.store || '';
-      const price  = p.price || '';
+      const name   = stripMd(p.name || p.title || '');
+      const brand  = stripMd(p.brand || p.source || p.store || '');
+      const price  = stripMd(p.price || '');
       const imgUrl = p.image_url || p.imageUrl || p.thumbnail || '';
       const link   = p.product_url || p.link || p.url || '#';
       const isTop  = i === 0;
+      const _rInitial = (brand || name || '✦').charAt(0).toUpperCase();
       const imgHtml = imgUrl
         ? `<img src="${imgUrl}" alt="${name}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
-        : `<span style="font-size:24px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">🛍️</span>`;
+        : `<span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--border-med);opacity:0.6;display:flex;align-items:center;justify-content:center;width:100%;height:100%">${_rInitial}</span>`;
       return `
       <div class="prod-card" onclick="window.open('${link}','_blank')">
         <div class="prod-inner">
@@ -1223,7 +1225,7 @@ async function sendMsg(imageUrl) {
           title:    stripMd(p.name),
           brand:    stripMd(p.brand || p.retailer || ''),
           source:   stripMd(p.retailer || ''),
-          price:    p.price,
+          price:    stripMd(p.price || ''),
           imageUrl: '',
           link:     '#',
         })));
