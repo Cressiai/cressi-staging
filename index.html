@@ -900,8 +900,42 @@ function parseProducts(text) {
 
 function stripMd(s) { return (s||'').replace(/\*\*/g,'').replace(/\*/g,'').trim(); }
 
-function openShop(q) {
-  window.open('https://www.google.com/search?tbm=shop&q=' + encodeURIComponent(q), '_blank');
+const RETAILER_SEARCH = {
+  'nordstrom':         q => `https://www.nordstrom.com/sr?keyword=${encodeURIComponent(q)}`,
+  'saks':              q => `https://www.saksfifthavenue.com/search/?query=${encodeURIComponent(q)}`,
+  'saks fifth avenue': q => `https://www.saksfifthavenue.com/search/?query=${encodeURIComponent(q)}`,
+  'neiman marcus':     q => `https://www.neimanmarcus.com/search.jsp?query=${encodeURIComponent(q)}`,
+  'neiman':            q => `https://www.neimanmarcus.com/search.jsp?query=${encodeURIComponent(q)}`,
+  'bloomingdale':      q => `https://www.bloomingdales.com/shop/search?keyword=${encodeURIComponent(q)}`,
+  'bloomingdales':     q => `https://www.bloomingdales.com/shop/search?keyword=${encodeURIComponent(q)}`,
+  'revolve':           q => `https://www.revolve.com/r/SearchResults.jsp?q=${encodeURIComponent(q)}`,
+  'net-a-porter':      q => `https://www.net-a-porter.com/en-us/shop/search?keywords=${encodeURIComponent(q)}`,
+  'net a porter':      q => `https://www.net-a-porter.com/en-us/shop/search?keywords=${encodeURIComponent(q)}`,
+  'farfetch':          q => `https://www.farfetch.com/shopping/women/search/items.aspx?q=${encodeURIComponent(q)}`,
+  'shopbop':           q => `https://www.shopbop.com/search/?query=${encodeURIComponent(q)}`,
+  'ssense':            q => `https://www.ssense.com/en-us/search?q=${encodeURIComponent(q)}`,
+  'bergdorf':          q => `https://www.bergdorfgoodman.com/search/endeca?words=${encodeURIComponent(q)}`,
+  'bergdorf goodman':  q => `https://www.bergdorfgoodman.com/search/endeca?words=${encodeURIComponent(q)}`,
+  'mytheresa':         q => `https://www.mytheresa.com/us/en/search.html?term=${encodeURIComponent(q)}`,
+  'matches':           q => `https://www.matchesfashion.com/us/search?q=${encodeURIComponent(q)}`,
+  'madewell':          q => `https://www.madewell.com/search#q=${encodeURIComponent(q)}`,
+  'anthropologie':     q => `https://www.anthropologie.com/search?q=${encodeURIComponent(q)}`,
+  'free people':       q => `https://www.freepeople.com/search?q=${encodeURIComponent(q)}`,
+  'zara':              q => `https://www.zara.com/us/en/search?searchTerm=${encodeURIComponent(q)}`,
+  'aritzia':           q => `https://www.aritzia.com/us/en/search?q=${encodeURIComponent(q)}`,
+  'loft':              q => `https://www.loft.com/search?query=${encodeURIComponent(q)}`,
+  'banana republic':   q => `https://bananarepublic.gap.com/browse/search.do?searchText=${encodeURIComponent(q)}`,
+  'j.crew':            q => `https://www.jcrew.com/search2/index.jsp?q=${encodeURIComponent(q)}`,
+  'j crew':            q => `https://www.jcrew.com/search2/index.jsp?q=${encodeURIComponent(q)}`,
+};
+
+function openShop(retailer, q) {
+  const key = (retailer || '').toLowerCase().trim();
+  const builderFn = Object.keys(RETAILER_SEARCH).find(k => key.includes(k));
+  const url = builderFn
+    ? RETAILER_SEARCH[builderFn](q)
+    : `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q)}`;
+  window.open(url, '_blank');
 }
 
 function renderProductCards(products) {
@@ -926,7 +960,7 @@ function renderProductCards(products) {
         <div class="resp-card-name">${name}</div>
         ${price ? `<div class="resp-card-price">${price}</div>` : ''}
         ${rationale ? `<div class="resp-card-rationale">${rationale}</div>` : ''}
-        <button class="resp-card-btn" data-q="${(brand+' '+name).replace(/"/g,'&quot;')}" onclick="openShop(this.dataset.q)">Shop →</button>
+        <button class="resp-card-btn" data-r="${retailer.replace(/"/g,'&quot;')}" data-q="${(brand+' '+name).replace(/"/g,'&quot;')}" onclick="openShop(this.dataset.r,this.dataset.q)">Shop →</button>
       </div>
     </div>`;
   }).join('');
