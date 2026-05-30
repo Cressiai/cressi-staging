@@ -20,7 +20,7 @@
     --border-med: rgba(138,129,120,0.28);
     --white:      #FDFCFA;
     --sidebar-w:  200px;
-    --results-w:  344px;
+    --results-w:  0px;
   }
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
   html, body { height:100%; background:var(--linen); color:var(--ink); font-family:'DM Mono',monospace; overflow:hidden; }
@@ -28,7 +28,7 @@
   /* paper texture */
   body::after { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); opacity:0.018; pointer-events:none; z-index:9999; }
 
-  .app { display:grid; grid-template-columns:var(--sidebar-w) 1fr var(--results-w); height:100vh; }
+  .app { display:grid; grid-template-columns:var(--sidebar-w) 1fr; height:100vh; }
 
   /* ── SIDEBAR ── */
   .sidebar { background:var(--white); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
@@ -148,33 +148,6 @@
   .input-meta { display:flex; justify-content:space-between; margin-top:8px; padding:0 2px; }
   .input-meta-text { font-size:7px; letter-spacing:0.1em; text-transform:uppercase; color:var(--smoke); opacity:0.3; }
 
-  /* ── RESULTS PANEL ── */
-  .results-panel { background:var(--linen); border-left:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
-
-  /* empty state */
-  .results-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px 32px; gap:14px; }
-  .results-empty-glyph { font-family:'Playfair Display',serif; font-size:38px; font-style:italic; color:var(--linen-dark); line-height:1; }
-  .results-empty-head { font-family:'Cormorant Garamond',serif; font-size:17px; font-style:italic; font-weight:300; color:var(--smoke); opacity:0.55; line-height:1.5; max-width:220px; }
-  .results-empty-sub { font-size:7px; letter-spacing:0.18em; text-transform:uppercase; color:var(--smoke); opacity:0.3; margin-top:6px; }
-
-  /* active results */
-  .results-active { display:none; flex-direction:column; flex:1; overflow:hidden; }
-  .results-active.visible { display:flex; }
-
-  .results-header { padding:16px 20px 12px; border-bottom:1px solid var(--border); flex-shrink:0; }
-  .results-header-top { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:10px; }
-  .results-big-num { font-family:'Playfair Display',serif; font-size:26px; font-weight:900; color:var(--ink); line-height:1; }
-  .results-big-label { font-size:6.5px; letter-spacing:0.22em; text-transform:uppercase; color:var(--smoke); opacity:0.45; margin-top:3px; }
-  .results-sort-btn { font-size:7px; letter-spacing:0.14em; text-transform:uppercase; color:var(--smoke); opacity:0.4; cursor:pointer; padding:5px 8px; border:1px solid var(--border); border-radius:2px; background:transparent; transition:all 0.14s; }
-  .results-sort-btn:hover { opacity:0.8; border-color:var(--border-med); }
-
-  .results-filters { display:flex; gap:5px; flex-wrap:wrap; }
-  .filter-tag { font-size:6.5px; letter-spacing:0.12em; text-transform:uppercase; padding:5px 10px; border-radius:100px; border:1px solid var(--border); color:var(--smoke); cursor:pointer; transition:all 0.14s; background:transparent; }
-  .filter-tag:hover { border-color:var(--border-med); color:var(--ink); }
-  .filter-tag.on { background:var(--ink); border-color:var(--ink); color:var(--white); }
-
-  .results-list { flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--linen-dark) transparent; }
-  .results-section-head { padding:10px 18px 6px; font-size:6px; letter-spacing:0.28em; text-transform:uppercase; color:var(--smoke); opacity:0.38; border-bottom:1px solid var(--border); }
 
   .prod-card { border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.15s; animation:riseIn 0.5s cubic-bezier(0.16,1,0.3,1) both; }
   .prod-card:hover { background:rgba(255,255,255,0.65); }
@@ -624,24 +597,6 @@
     </div>
   </main>
 
-  <!-- RESULTS PANEL -->
-  <aside class="results-panel">
-    <div class="results-empty" id="resultsEmpty">
-      <div class="results-empty-glyph">✦</div>
-      <p class="results-empty-head">Your results will appear here once you start a conversation.</p>
-      <span class="results-empty-sub">500+ brands · Real-time search</span>
-    </div>
-    <div class="results-active" id="resultsActive">
-      <div class="results-header">
-        <div class="results-header-top">
-          <div><div class="results-big-num">0</div><div class="results-big-label">Pieces found</div></div>
-          <button class="results-sort-btn">Sort ↕</button>
-        </div>
-      </div>
-      <div class="results-list">
-      </div>
-    </div>
-  </aside>
 </div>
 
 <script>
@@ -765,8 +720,6 @@ function renderSidebarRecent() {
 const chatInput   = document.getElementById('chatInput');
 const welcomeView = document.getElementById('welcomeView');
 const msgsView    = document.getElementById('messagesView');
-const resEmpty    = document.getElementById('resultsEmpty');
-const resActive   = document.getElementById('resultsActive');
 let firstMsg = true;
 
 function usePrompt(el) {
@@ -786,14 +739,6 @@ function clearChat() {
   firstMsg = true;
   currentThreadId = null;
   isStreaming = false;
-  // Reset right panel
-  const list = document.querySelector('#resultsActive .results-list');
-  if (list) list.innerHTML = '';
-  const countEl = document.querySelector('#resultsActive .results-big-num');
-  if (countEl) countEl.textContent = '0';
-  resActive.classList.remove('visible');
-  resEmpty.style.display = '';
-  resEmpty.style.opacity = '1';
 }
 
 function showChat() {
@@ -806,12 +751,6 @@ function showChat() {
   msgsView.style.display = 'flex';
   // Cosmetic: hide welcome view shell after fade (non-critical)
   setTimeout(() => { welcomeView.style.display = 'none'; }, 320);
-  // Reveal results panel after a short delay
-  setTimeout(() => {
-    resEmpty.style.opacity = '0';
-    resEmpty.style.transition = 'opacity 0.28s';
-    setTimeout(() => { resEmpty.style.display = 'none'; resActive.classList.add('visible'); }, 320);
-  }, 900);
 }
 
 function showTyping() {
@@ -1045,63 +984,7 @@ function renderRealProducts(products) {
   }).join('');
 }
 
-function populateRightPanel(products) {
-  if (!products || !products.length) return;
-  window._wishProducts = products; // store for handleWishToggle
-  const panel = document.getElementById('resultsActive');
-  const empty  = document.getElementById('resultsEmpty');
-  if (empty)  { empty.style.display = 'none'; }
-  if (panel)  { panel.classList.add('visible'); }
-
-  const list = document.querySelector('#resultsActive .results-list');
-  if (!list) return;
-
-  // Update count
-  const countEl = panel && panel.querySelector('.results-big-num');
-  if (countEl) countEl.textContent = products.length;
-
-  const wl = getWishlist();
-  list.innerHTML = '<div class="results-section-head">Cressi Picks</div>' +
-    products.map((p, i) => {
-      const pLink = p.link || p.product_url || p.url || '';
-      const alreadySaved = wl.some(w => (w.link||w.product_url||w.url||'') === pLink);
-      const heartHtml = alreadySaved ? '♥' : '♡';
-      const heartStyle = alreadySaved ? 'color:var(--gold);opacity:1;' : '';
-      const name   = stripMd(p.name || p.title || '');
-      const brand  = stripMd(p.brand || p.source || p.store || '');
-      const price  = stripMd(p.price || '');
-      const imgUrl = p.image_url || p.imageUrl || p.thumbnail || '';
-      const link   = p.product_url || p.link || p.url || '#';
-      const isTop  = i === 0;
-      const _rInitial = (brand || name || '✦').charAt(0).toUpperCase();
-      const imgHtml = imgUrl
-        ? `<img src="${imgUrl}" alt="${name}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
-        : `<span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--border-med);opacity:0.6;display:flex;align-items:center;justify-content:center;width:100%;height:100%">${_rInitial}</span>`;
-      return `
-      <div class="prod-card" onclick="window.open('${link}','_blank')">
-        <div class="prod-inner">
-          <div class="prod-img" style="overflow:hidden;">
-            ${isTop ? '<div class="prod-pick-line"></div>' : ''}
-            ${imgHtml}
-          </div>
-          <div class="prod-info">
-            <div class="prod-top">
-              <div>
-                ${isTop ? '<span class="prod-pick-badge">✦ Top Pick</span>' : ''}
-                ${brand ? `<div class="prod-brand">${brand}</div>` : ''}
-                <div class="prod-name">${name}</div>
-              </div>
-              <span class="prod-wish" title="Save to Wishlist" style="${heartStyle}" onclick="event.stopPropagation();handleWishToggle(this,${i})">${heartHtml}</span>
-            </div>
-            <div class="prod-bottom">
-              <div class="prod-price">${price}</div>
-              <button class="prod-shop" onclick="event.stopPropagation();window.open('${link}','_blank')">Shop →</button>
-            </div>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
-}
+function populateRightPanel() { /* right panel removed */ }
 
 // ══════════════════════════════════════════════
 // STREAM FROM CRESSI API
@@ -1194,7 +1077,6 @@ async function sendMsg(imageUrl) {
               const existing = bubble.querySelector('.resp-cards');
               if (existing) existing.remove();
               bubble.innerHTML = formatResponse(fullText) + `<div class="resp-cards">${cards}</div>`;
-              populateRightPanel(prods);
               scrollBottom();
             }
           } else if (p.type === 'tool_call') {
@@ -1214,23 +1096,6 @@ async function sendMsg(imageUrl) {
 
     if (fullText) saveMessage({role:'Ai', message:fullText, chatUuid:currentThreadId});
 
-    // If no Serper products chunk arrived, populate right panel from PRODUCT: lines in text
-    // Check for actual prod-cards, not just the visible class (which showChat() adds regardless)
-    const _rightList = document.querySelector('#resultsActive .results-list');
-    const _hasRealCards = _rightList && _rightList.querySelector('.prod-card');
-    if (fullText && !_hasRealCards) {
-      const { products: textProds } = parseProducts(fullText);
-      if (textProds && textProds.length) {
-        populateRightPanel(textProds.map(p => ({
-          title:    stripMd(p.name),
-          brand:    stripMd(p.brand || p.retailer || ''),
-          source:   stripMd(p.retailer || ''),
-          price:    stripMd(p.price || ''),
-          imageUrl: '',
-          link:     '#',
-        })));
-      }
-    }
 
     setTimeout(()=>addFollowUpChips(aiBlock),300);
 
@@ -1322,7 +1187,6 @@ async function handleFileUpload(e) {
               const existing = bubble.querySelector('.resp-cards');
               if (existing) existing.remove();
               bubble.innerHTML = formatResponse(fullText) + `<div class="resp-cards">${renderRealProducts(prods)}</div>`;
-              populateRightPanel(prods);
               scrollBottom();
             }
           } else if (p.type === 'error') {
