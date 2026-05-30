@@ -895,6 +895,10 @@ function parseProducts(text) {
 
 function stripMd(s) { return (s||'').replace(/\*\*/g,'').replace(/\*/g,'').trim(); }
 
+function openShop(q) {
+  window.open('https://www.google.com/search?tbm=shop&q=' + encodeURIComponent(q), '_blank');
+}
+
 function renderProductCards(products) {
   if (!products.length) return '';
   const cards = products.map((p, i) => {
@@ -917,7 +921,7 @@ function renderProductCards(products) {
         <div class="resp-card-name">${name}</div>
         ${price ? `<div class="resp-card-price">${price}</div>` : ''}
         ${rationale ? `<div class="resp-card-rationale">${rationale}</div>` : ''}
-        <button class="resp-card-btn" onclick="window.open('https://www.google.com/search?tbm=shop&q='+encodeURIComponent('${brand} ${name}'),'_blank')">Shop →</button>
+        <button class="resp-card-btn" data-q="${(brand+' '+name).replace(/"/g,'&quot;')}" onclick="openShop(this.dataset.q)">Shop →</button>
       </div>
     </div>`;
   }).join('');
@@ -964,12 +968,13 @@ function renderRealProducts(products) {
     const link      = p.product_url || p.link || p.url || '#';
     const isTop     = i === 0;
     const _initial  = (brand || name || '✦').charAt(0).toUpperCase();
-    const imgHtml   = imgUrl
-      ? `<img src="${imgUrl}" alt="${name}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
-      : `<span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--border-med);opacity:0.6;">${_initial}</span>`;
+    const imgHtml   = `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+        <span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--border-med);opacity:0.6;">${_initial}</span>
+        ${imgUrl ? `<img src="${imgUrl}" referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">` : ''}
+      </div>`;
     return `
     <div class="resp-card ${isTop ? 'resp-card-top' : ''}">
-      <div class="resp-card-img" style="overflow:hidden;">
+      <div class="resp-card-img" style="overflow:hidden;position:relative;">
         ${isTop ? '<div class="resp-pick-line"></div>' : ''}
         ${imgHtml}
         ${isTop ? '<span class="resp-pick-badge" style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);">✦ Top Pick</span>' : ''}
