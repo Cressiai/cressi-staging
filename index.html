@@ -703,13 +703,18 @@ function addHistory(query) {
   localStorage.setItem(HIST_KEY, JSON.stringify(hist.slice(0, 50))); // cap at 50
   renderSidebarRecent();
 }
+function replayQuery(q) {
+  switchNav('cressi');
+  setTimeout(() => { chatInput.value = q; sendMsg(); }, 80);
+}
+
 function renderSidebarRecent() {
   const list = document.getElementById('sidebarRecentList');
   if (!list) return;
   const hist = getHistory();
   if (!hist.length) { list.innerHTML = ''; return; }
   list.innerHTML = hist.slice(0, 8).map(h => `
-    <div class="recent-item" onclick="switchNav('cressi');setTimeout(()=>{ chatInput.value=${JSON.stringify(h.query)};sendMsg(); },80);">
+    <div class="recent-item" data-q="${h.query.replace(/"/g,'&quot;')}" onclick="replayQuery(this.dataset.q)">
       <span class="recent-text">${h.query}</span>
     </div>`).join('');
 }
