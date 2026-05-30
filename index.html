@@ -695,16 +695,53 @@ function resetOnboarding() { localStorage.removeItem(OB_KEY); location.reload();
 const tasteProfile = { shopsFor:'Women\'s', priceRanges:{}, styleWords:[], fitNotes:'', recentSearches:[] };
 
 // ── HISTORY ──────────────────────────────────
-const HIST_KEY = 'cressi_history'; // [{query, ts}]
+const HIST_KEY = 'cressi_history'; // [{query, ts, threadId}]
+const CONV_KEY = 'cressi_conv';    // {threadId: {html, ts, query}}
+
 function getHistory() { try { return JSON.parse(localStorage.getItem(HIST_KEY)||'[]'); } catch { return []; } }
+
 function addHistory(query) {
   const hist = getHistory().filter(h => h.query !== query); // dedupe
-  hist.unshift({ query, ts: Date.now() });
-  localStorage.setItem(HIST_KEY, JSON.stringify(hist.slice(0, 50))); // cap at 50
+  hist.unshift({ query, ts: Date.now(), threadId: currentThreadId || null });
+  localStorage.setItem(HIST_KEY, JSON.stringify(hist.slice(0, 50)));
   renderSidebarRecent();
 }
+
+function saveConvSnapshot() {
+  if (!currentThreadId || !msgsView.innerHTML) return;
+  try {
+    const convs = JSON.parse(localStorage.getItem(CONV_KEY)||'{}');
+    convs[currentThreadId] = { html: msgsView.innerHTML, ts: Date.now() };
+    // Keep only 15 most recent conversations
+    const trimmed = Object.entries(convs).sort((a,b)=>b[1].ts-a[1].ts).slice(0,15);
+    localStorage.setItem(CONV_KEY, JSON.stringify(Object.fromEntries(trimmed)));
+  } catch(e) { console.warn('[Cressi] Conv save failed', e); }
+}
+
+function restoreConv(threadId) {
+  try {
+    const convs = JSON.parse(localStorage.getItem(CONV_KEY)||'{}');
+    const conv = convs[threadId];
+    if (!conv || !conv.html) return false;
+    msgsView.innerHTML = conv.html;
+    msgsView.style.display = 'flex';
+    welcomeView.style.display = 'none';
+    welcomeView.style.opacity = '0';
+    currentThreadId = threadId;
+    firstMsg = false;
+    isStreaming = false;
+    scrollBottom();
+    return true;
+  } catch(e) { return false; }
+}
+
 function replayQuery(q) {
   switchNav('cressi');
+  // Try to restore saved conversation first
+  const hist = getHistory();
+  const entry = hist.find(h => h.query === q);
+  if (entry && entry.threadId && restoreConv(entry.threadId)) return;
+  // Fall back to re-sending
   setTimeout(() => { chatInput.value = q; sendMsg(); }, 80);
 }
 
@@ -1099,6 +1136,8 @@ async function enrichOneCard(cardEl, brand, name) {
               const btn = cardEl.querySelector('.resp-card-btn');
               if (btn) { btn.onclick = (e) => { e.stopPropagation(); window.open(link,'_blank'); }; }
             }
+            // Re-save snapshot now that this card has real image + link
+            saveConvSnapshot();
             return;
           }
         } catch(e) {}
@@ -1108,7 +1147,10 @@ async function enrichOneCard(cardEl, brand, name) {
 }
 
 function enrichTextProducts(bubble) {
-  bubble.querySelectorAll('[data-enrichable="true"]').forEach(card => {
+  const cards = bubble.querySelectorAll('[data-enrichable="true"]');
+  console.log('[Enrich] Starting enrichment for', cards.length, 'cards');
+  cards.forEach(card => {
+    console.log('[Enrich] Enriching:', card.dataset.brand, '—', card.dataset.name);
     enrichOneCard(card, card.dataset.brand||'', card.dataset.name||'');
   });
 }
@@ -1203,6 +1245,9 @@ async function sendMsg(imageUrl) {
     }
 
     if (fullText) saveMessage({role:'Ai', message:fullText, chatUuid:currentThreadId});
+
+    // Save full conversation snapshot so clicking Recent restores it
+    saveConvSnapshot();
 
     // If only text products (no Serper chunk), silently enrich them with real images + links
     if (!hasRealProducts) enrichTextProducts(bubble);
