@@ -938,41 +938,89 @@ function parseProducts(text) {
 function stripMd(s) { return (s||'').replace(/\*\*/g,'').replace(/\*/g,'').trim(); }
 
 const RETAILER_SEARCH = {
+  // Department stores
   'nordstrom':         q => `https://www.nordstrom.com/sr?keyword=${encodeURIComponent(q)}`,
   'saks':              q => `https://www.saksfifthavenue.com/search/?query=${encodeURIComponent(q)}`,
   'saks fifth avenue': q => `https://www.saksfifthavenue.com/search/?query=${encodeURIComponent(q)}`,
   'neiman marcus':     q => `https://www.neimanmarcus.com/search.jsp?query=${encodeURIComponent(q)}`,
   'neiman':            q => `https://www.neimanmarcus.com/search.jsp?query=${encodeURIComponent(q)}`,
   'bloomingdale':      q => `https://www.bloomingdales.com/shop/search?keyword=${encodeURIComponent(q)}`,
-  'bloomingdales':     q => `https://www.bloomingdales.com/shop/search?keyword=${encodeURIComponent(q)}`,
-  'revolve':           q => `https://www.revolve.com/r/SearchResults.jsp?q=${encodeURIComponent(q)}`,
+  'bergdorf':          q => `https://www.bergdorfgoodman.com/search/endeca?words=${encodeURIComponent(q)}`,
+  // Luxury multi-brand
   'net-a-porter':      q => `https://www.net-a-porter.com/en-us/shop/search?keywords=${encodeURIComponent(q)}`,
   'net a porter':      q => `https://www.net-a-porter.com/en-us/shop/search?keywords=${encodeURIComponent(q)}`,
   'farfetch':          q => `https://www.farfetch.com/shopping/women/search/items.aspx?q=${encodeURIComponent(q)}`,
   'shopbop':           q => `https://www.shopbop.com/search/?query=${encodeURIComponent(q)}`,
   'ssense':            q => `https://www.ssense.com/en-us/search?q=${encodeURIComponent(q)}`,
-  'bergdorf':          q => `https://www.bergdorfgoodman.com/search/endeca?words=${encodeURIComponent(q)}`,
-  'bergdorf goodman':  q => `https://www.bergdorfgoodman.com/search/endeca?words=${encodeURIComponent(q)}`,
   'mytheresa':         q => `https://www.mytheresa.com/us/en/search.html?term=${encodeURIComponent(q)}`,
   'matches':           q => `https://www.matchesfashion.com/us/search?q=${encodeURIComponent(q)}`,
+  'revolve':           q => `https://www.revolve.com/r/SearchResults.jsp?q=${encodeURIComponent(q)}`,
+  // Luxury brand own sites
+  'gucci':             q => `https://www.gucci.com/us/en/search?query=${encodeURIComponent(q)}`,
+  'prada':             q => `https://www.prada.com/us/en/search.html?q=${encodeURIComponent(q)}`,
+  'bottega':           q => `https://www.bottegaveneta.com/en-us/search?query=${encodeURIComponent(q)}`,
+  'saint laurent':     q => `https://www.ysl.com/en-us/search?q=${encodeURIComponent(q)}`,
+  'ysl':               q => `https://www.ysl.com/en-us/search?q=${encodeURIComponent(q)}`,
+  'celine':            q => `https://www.celine.com/en-us/search?q=${encodeURIComponent(q)}`,
+  'loewe':             q => `https://www.loewe.com/usa/en/search?q=${encodeURIComponent(q)}`,
+  'valentino':         q => `https://www.valentino.com/en-us/search?q=${encodeURIComponent(q)}`,
+  'balenciaga':        q => `https://www.balenciaga.com/en-us/search?q=${encodeURIComponent(q)}`,
+  'chanel':            q => `https://www.chanel.com/us/search/?q=${encodeURIComponent(q)}`,
+  'dior':              q => `https://www.dior.com/en_us/search?q=${encodeURIComponent(q)}`,
+  'hermes':            q => `https://www.hermes.com/us/en/search/?q=${encodeURIComponent(q)}`,
+  'louis vuitton':     q => `https://us.louisvuitton.com/eng-us/search/${encodeURIComponent(q)}`,
+  'burberry':          q => `https://us.burberry.com/search/?q=${encodeURIComponent(q)}`,
+  'givenchy':          q => `https://www.givenchy.com/us/en-US/search?q=${encodeURIComponent(q)}`,
+  'fendi':             q => `https://www.fendi.com/en-us/search?q=${encodeURIComponent(q)}`,
+  'versace':           q => `https://www.versace.com/us/en-us/search/?q=${encodeURIComponent(q)}`,
+  'reformation':       q => `https://www.thereformation.com/search?q=${encodeURIComponent(q)}`,
+  'ag jeans':          q => `https://www.agjeans.com/search?q=${encodeURIComponent(q)}`,
+  'paige':             q => `https://www.paige.com/search?q=${encodeURIComponent(q)}`,
+  'frame':             q => `https://www.frame-store.com/search?q=${encodeURIComponent(q)}`,
+  'citizens':          q => `https://www.citizensofhumanity.com/search?q=${encodeURIComponent(q)}`,
+  // Mid-market
   'madewell':          q => `https://www.madewell.com/search#q=${encodeURIComponent(q)}`,
   'anthropologie':     q => `https://www.anthropologie.com/search?q=${encodeURIComponent(q)}`,
   'free people':       q => `https://www.freepeople.com/search?q=${encodeURIComponent(q)}`,
-  'zara':              q => `https://www.zara.com/us/en/search?searchTerm=${encodeURIComponent(q)}`,
   'aritzia':           q => `https://www.aritzia.com/us/en/search?q=${encodeURIComponent(q)}`,
   'loft':              q => `https://www.loft.com/search?query=${encodeURIComponent(q)}`,
   'banana republic':   q => `https://bananarepublic.gap.com/browse/search.do?searchText=${encodeURIComponent(q)}`,
   'j.crew':            q => `https://www.jcrew.com/search2/index.jsp?q=${encodeURIComponent(q)}`,
   'j crew':            q => `https://www.jcrew.com/search2/index.jsp?q=${encodeURIComponent(q)}`,
+  'zara':              q => `https://www.zara.com/us/en/search?searchTerm=${encodeURIComponent(q)}`,
+  'other stories':     q => `https://www.stories.com/en_usd/search.html?q=${encodeURIComponent(q)}`,
+};
+
+// Brand-only fallback — when retailer is unknown, try brand's own site or Farfetch
+const BRAND_SEARCH = {
+  'gucci':         q => `https://www.gucci.com/us/en/search?query=${encodeURIComponent(q)}`,
+  'prada':         q => `https://www.prada.com/us/en/search.html?q=${encodeURIComponent(q)}`,
+  'bottega':       q => `https://www.bottegaveneta.com/en-us/search?query=${encodeURIComponent(q)}`,
+  'saint laurent': q => `https://www.ysl.com/en-us/search?q=${encodeURIComponent(q)}`,
+  'celine':        q => `https://www.celine.com/en-us/search?q=${encodeURIComponent(q)}`,
+  'loewe':         q => `https://www.loewe.com/usa/en/search?q=${encodeURIComponent(q)}`,
+  'chanel':        q => `https://www.chanel.com/us/search/?q=${encodeURIComponent(q)}`,
+  'dior':          q => `https://www.dior.com/en_us/search?q=${encodeURIComponent(q)}`,
+  'hermes':        q => `https://www.hermes.com/us/en/search/?q=${encodeURIComponent(q)}`,
+  'balenciaga':    q => `https://www.balenciaga.com/en-us/search?q=${encodeURIComponent(q)}`,
+  'valentino':     q => `https://www.valentino.com/en-us/search?q=${encodeURIComponent(q)}`,
+  'fendi':         q => `https://www.fendi.com/en-us/search?q=${encodeURIComponent(q)}`,
+  'reformation':   q => `https://www.thereformation.com/search?q=${encodeURIComponent(q)}`,
+  'ag jeans':      q => `https://www.agjeans.com/search?q=${encodeURIComponent(q)}`,
+  'paige':         q => `https://www.paige.com/search?q=${encodeURIComponent(q)}`,
 };
 
 function openShop(retailer, q) {
-  const key = (retailer || '').toLowerCase().trim();
-  const builderFn = Object.keys(RETAILER_SEARCH).find(k => key.includes(k));
-  const url = builderFn
-    ? RETAILER_SEARCH[builderFn](q)
-    : `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q)}`;
-  window.open(url, '_blank');
+  const rKey = (retailer || '').toLowerCase().trim();
+  const bKey = q.toLowerCase();
+  // 1. Try retailer map
+  const rMatch = Object.keys(RETAILER_SEARCH).find(k => rKey.includes(k));
+  if (rMatch) { window.open(RETAILER_SEARCH[rMatch](q), '_blank'); return; }
+  // 2. Try brand map (brand name is part of the query "Brand Name Product")
+  const bMatch = Object.keys(BRAND_SEARCH).find(k => bKey.startsWith(k));
+  if (bMatch) { window.open(BRAND_SEARCH[bMatch](q), '_blank'); return; }
+  // 3. Default: Farfetch (better than Google for fashion)
+  window.open(`https://www.farfetch.com/shopping/women/search/items.aspx?q=${encodeURIComponent(q)}`, '_blank');
 }
 
 function renderProductCards(products) {
