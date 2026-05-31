@@ -1332,7 +1332,7 @@ async function sendMsg(imageUrl) {
 
     const decoder = new TextDecoder();
     let fullText='', done=false, streamBuffer='';
-    let chunkCount = 0, hasRealProducts = false;
+    let chunkCount = 0, hasTextProducts = false, hasSerperProducts = false;
 
     while (!done) {
       const {value, done:sd} = await reader.read();
@@ -1351,25 +1351,32 @@ async function sendMsg(imageUrl) {
         if (raw === '[DONE]') { done=true; break; }
         try {
           const p = JSON.parse(raw);
-          console.log('[Cressi] chunk type:', p.type, p.content ? String(p.content).slice(0,50) : '');
           if (p.type === 'content' && p.content) {
             fullText += p.content;
             bubble.innerHTML = formatResponse(fullText);
+            // Track whether the AI curated specific picks in the text (PRODUCT: format)
+            if (!hasTextProducts) {
+              const { products: tp } = parseProducts(fullText);
+              if (tp.length > 0) hasTextProducts = true;
+            }
             scrollBottom();
           } else if (p.type === 'products' && p.content) {
-            // Real Serper products — render in chat bubble
             const prods = Array.isArray(p.content) ? p.content : [];
-            console.log('[Cressi] products received:', prods.length);
+            console.log('[Cressi] products received:', prods.length, '| AI text picks:', hasTextProducts);
             if (prods.length) {
-              hasRealProducts = true;
-              const cards = renderRealProducts(prods);
-              const existing = bubble.querySelector('.resp-cards');
-              if (existing) existing.remove();
-              bubble.innerHTML = formatResponse(fullText) + `<div class="resp-cards">${cards}</div>`;
-              scrollBottom();
+              hasSerperProducts = true;
+              if (!hasTextProducts) {
+                // No AI-curated picks — show Serper cards as the primary display
+                const cards = renderRealProducts(prods);
+                const existing = bubble.querySelector('.resp-cards');
+                if (existing) existing.remove();
+                bubble.innerHTML = formatResponse(fullText) + `<div class="resp-cards">${cards}</div>`;
+                scrollBottom();
+              }
+              // If AI already curated picks: skip generic Serper cards entirely.
+              // enrichTextProducts will run after stream and add images to the good ones.
             }
           } else if (p.type === 'tool_call') {
-            // Show searching indicator
             bubble.innerHTML = '<em style="opacity:0.5">Searching for the best options…</em>';
           } else if (p.type === 'end') {
             done = true;
@@ -1388,8 +1395,8 @@ async function sendMsg(imageUrl) {
     // Save full conversation snapshot so clicking Recent restores it
     saveConvSnapshot();
 
-    // If only text products (no Serper chunk), silently enrich them with real images + links
-    if (!hasRealProducts) enrichTextProducts(bubble);
+    // Always enrich AI-curated text picks with real images + direct links
+    if (hasTextProducts) enrichTextProducts(bubble);
 
     setTimeout(()=>addFollowUpChips(aiBlock),300);
 
