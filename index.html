@@ -211,6 +211,7 @@
   .resp-card-emoji { font-size:24px; }
   .resp-pick-line { position:absolute; top:0; left:0; right:0; height:2px; background:var(--gold); }
   .resp-pick-badge { font-size:5.5px; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold); margin-top:4px; opacity:0.9; }
+  .resp-section-label { font-size:7px; letter-spacing:0.22em; text-transform:uppercase; color:var(--smoke); opacity:0.55; margin:20px 0 8px 1px; }
   .resp-card-body { padding:11px 13px; display:flex; flex-direction:column; justify-content:space-between; }
   .resp-card-retailer { font-size:6px; letter-spacing:0.22em; text-transform:uppercase; color:var(--smoke); opacity:0.5; margin-bottom:2px; }
   .resp-card-brand { font-size:6.5px; letter-spacing:0.18em; text-transform:uppercase; color:var(--smoke); margin-bottom:2px; }
@@ -1122,7 +1123,7 @@ async function saveMessage({role, message, chatUuid, imageUrl}) {
 // ══════════════════════════════════════════════
 // REAL PRODUCT RENDERING (Serper data with images)
 // ══════════════════════════════════════════════
-function renderRealProducts(products) {
+function renderRealProducts(products, showBadge = true) {
   if (!products || !products.length) return '';
   return products.slice(0, 3).map((p, i) => {
     const name      = p.name || p.title || '';
@@ -1130,7 +1131,7 @@ function renderRealProducts(products) {
     const price     = p.price || '';
     const imgUrl    = p.image_url || p.imageUrl || p.thumbnail || '';
     const link      = p.product_url || p.link || p.url || '#';
-    const isTop     = i === 0;
+    const isTop     = i === 0 && showBadge;
     const _initial  = (brand || name || '✦').charAt(0).toUpperCase();
     const isDataUri = imgUrl.startsWith('data:');
     console.log(`[Img] card ${i}:`, {name: name.slice(0,30), isDataUri, imgUrl: imgUrl.slice(0,40), link: link.slice(0,60)});
@@ -1393,8 +1394,8 @@ async function sendMsg(imageUrl) {
               // Build/replace the Serper section — appended BELOW AI text picks
               if (serperEl) serperEl.remove();
               serperEl = document.createElement('div');
-              serperEl.className = 'resp-cards';
-              serperEl.innerHTML = renderRealProducts(prods.slice(0, 6));
+              serperEl.className = 'serper-section';
+              serperEl.innerHTML = `<div class="resp-section-label">Also Consider</div><div class="resp-cards">${renderRealProducts(prods.slice(0, 3), false)}</div>`;
               bubble.appendChild(serperEl);
               scrollBottom();
             }
