@@ -1043,16 +1043,21 @@ const BRAND_SEARCH = {
   'paige':         q => `https://www.paige.com/search?q=${encodeURIComponent(q)}`,
 };
 
-function openShop(retailer, q) {
+function openShop(btn, retailer, q) {
+  // 1. If enrichment already stored a direct product link — use it
+  if (btn && btn.dataset && btn.dataset.directLink) {
+    window.open(btn.dataset.directLink, '_blank');
+    return;
+  }
   const rKey = (retailer || '').toLowerCase().trim();
-  const bKey = q.toLowerCase();
-  // 1. Try retailer map
+  const bKey = (q || '').toLowerCase();
+  // 2. Try retailer search map
   const rMatch = Object.keys(RETAILER_SEARCH).find(k => rKey.includes(k));
   if (rMatch) { window.open(RETAILER_SEARCH[rMatch](q), '_blank'); return; }
-  // 2. Try brand map (brand name is part of the query "Brand Name Product")
+  // 3. Try brand map (brand name is part of the query "Brand Name Product")
   const bMatch = Object.keys(BRAND_SEARCH).find(k => bKey.startsWith(k));
   if (bMatch) { window.open(BRAND_SEARCH[bMatch](q), '_blank'); return; }
-  // 3. Default: Farfetch (better than Google for fashion)
+  // 4. Default: Farfetch (better than Google for fashion)
   window.open(`https://www.farfetch.com/shopping/women/search/items.aspx?q=${encodeURIComponent(q)}`, '_blank');
 }
 
@@ -1078,7 +1083,7 @@ function renderProductCards(products) {
         <div class="resp-card-name">${name}</div>
         ${price ? `<div class="resp-card-price">${price}</div>` : ''}
         ${rationale ? `<div class="resp-card-rationale">${rationale}</div>` : ''}
-        <button class="resp-card-btn" data-r="${retailer.replace(/"/g,'&quot;')}" data-q="${(brand+' '+name).replace(/"/g,'&quot;')}" onclick="openShop(this.dataset.r,this.dataset.q)">Shop →</button>
+        <button class="resp-card-btn" data-r="${retailer.replace(/"/g,'&quot;')}" data-q="${(brand+' '+name).replace(/"/g,'&quot;')}" onclick="openShop(this,this.dataset.r,this.dataset.q)">Shop →</button>
       </div>
     </div>`;
   }).join('');
@@ -1125,18 +1130,26 @@ function renderRealProducts(products) {
     const link      = p.product_url || p.link || p.url || '#';
     const isTop     = i === 0;
     const _initial  = (brand || name || '✦').charAt(0).toUpperCase();
-    if (i === 0) console.log('[Img] first product fields:', JSON.stringify({name, brand, imgUrl: imgUrl.slice(0,80), link: link.slice(0,80)}));
-    const proxied = imgUrl ? `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl)}&w=300&h=300&fit=cover` : '';
-    const imgHtml = `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
-        <span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--border-med);opacity:0.6;">${_initial}</span>
-        ${imgUrl ? `<img src="${imgUrl}" referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="if(this.dataset.tried){this.style.display='none';}else{this.dataset.tried='1';this.src='${proxied}';}">` : ''}
-      </div>`;
+    console.log(`[Img] card ${i}:`, {name: name.slice(0,30), brand: brand.slice(0,20), imgUrl: imgUrl.slice(0,80), link: link.slice(0,60)});
+    // Use &amp; so HTML parser decodes it back to & inside the JS event handler
+    const proxiedHtml = imgUrl
+      ? `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl)}&amp;w=300&amp;h=300&amp;fit=cover&amp;output=jpg`
+      : '';
+    // Image sits absolutely over the letter placeholder — no nested wrapper needed
+    const imgTag = imgUrl
+      ? `<img src="${imgUrl}" referrerpolicy="no-referrer" data-orig="${imgUrl.replace(/"/g,'&quot;')}"
+           style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;"
+           onload="console.log('[Img] loaded ✅ card ${i}')"
+           onerror="if(this.dataset.tried){this.style.display='none';console.log('[Img] both failed ❌ card ${i}');}else{this.dataset.tried='1';this.src='${proxiedHtml}';console.log('[Img] trying proxy card ${i}');}"`
+      + `>`
+      : '';
     return `
     <div class="resp-card ${isTop ? 'resp-card-top' : ''}">
       <div class="resp-card-img" style="overflow:hidden;position:relative;">
         ${isTop ? '<div class="resp-pick-line"></div>' : ''}
-        ${imgHtml}
-        ${isTop ? '<span class="resp-pick-badge" style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);">✦ Top Pick</span>' : ''}
+        <span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--border-med);opacity:0.6;position:relative;z-index:0;">${_initial}</span>
+        ${imgTag}
+        ${isTop ? '<span class="resp-pick-badge" style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);z-index:2;">✦ Top Pick</span>' : ''}
       </div>
       <div class="resp-card-body">
         ${brand ? `<div class="resp-card-brand">${brand}</div>` : ''}
@@ -1174,10 +1187,28 @@ async function streamCressi({prompt, imageUrl}) {
 // BACKGROUND SERPER ENRICHMENT
 // Fires silent calls for text-parsed product cards to get real images + links
 // ══════════════════════════════════════════════
+
+// Fetch image through weserv proxy → convert to blob URL so hotlink protection is bypassed entirely
+async function loadImageToBlob(imgUrl) {
+  try {
+    const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl)}&w=220&h=220&fit=cover&output=jpg`;
+    const resp = await fetch(proxyUrl);
+    if (!resp.ok) { console.log('[Img] proxy HTTP error', resp.status, imgUrl.slice(0,60)); return null; }
+    const blob = await resp.blob();
+    if (!blob.size) { console.log('[Img] empty blob for', imgUrl.slice(0,60)); return null; }
+    const blobUrl = URL.createObjectURL(blob);
+    console.log('[Img] blob ready ✅', imgUrl.slice(0,60));
+    return blobUrl;
+  } catch(e) {
+    console.log('[Img] blob fetch failed:', e.message, imgUrl.slice(0,60));
+    return null;
+  }
+}
+
 async function enrichOneCard(cardEl, brand, name) {
   try {
     if (!document.contains(cardEl)) return;
-    const query = `show me the ${brand} ${name}`;
+    const query = `${brand} ${name} buy`;
     const res = await fetch(API.chatbot, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ prompt: query, user_id: currentUserId||1, thread_id:'', s3_image_url:'', shop_for_others:false })
@@ -1201,31 +1232,46 @@ async function enrichOneCard(cardEl, brand, name) {
             try { reader.cancel(); } catch(e){}
             if (!document.contains(cardEl)) return;
             const prod = p.content[0];
+            console.log('[Enrich] Got product for', brand, name, '→', JSON.stringify({
+              imgUrl: (prod.image_url||prod.imageUrl||prod.thumbnail||'').slice(0,80),
+              link: (prod.product_url||prod.link||prod.url||'').slice(0,80)
+            }));
             const imgUrl = prod.image_url || prod.imageUrl || prod.thumbnail || '';
             const link   = prod.product_url || prod.link || prod.url || '';
-            if (imgUrl) {
-              const proxied = `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl)}&w=200&h=200&fit=cover&output=jpg`;
-              const imgBox = cardEl.querySelector('.resp-card-img');
-              if (imgBox) {
-                const img = document.createElement('img');
-                img.src = proxied;
-                img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;';
-                img.onerror = () => img.remove();
-                imgBox.appendChild(img);
-              }
-            }
+
+            // Store direct link as data attribute — survives innerHTML serialization
             if (link) {
               const btn = cardEl.querySelector('.resp-card-btn');
-              if (btn) { btn.onclick = (e) => { e.stopPropagation(); window.open(link,'_blank'); }; }
+              if (btn) {
+                btn.dataset.directLink = link;
+                console.log('[Enrich] Direct link saved for', brand, name, '→', link.slice(0,80));
+              }
             }
-            // Re-save snapshot now that this card has real image + link
+
+            // Load image via fetch→blob (completely bypasses hotlink protection)
+            if (imgUrl) {
+              const blobUrl = await loadImageToBlob(imgUrl);
+              if (blobUrl && document.contains(cardEl)) {
+                const imgBox = cardEl.querySelector('.resp-card-img');
+                if (imgBox) {
+                  imgBox.style.position = 'relative';
+                  const img = document.createElement('img');
+                  img.src = blobUrl;
+                  img.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;';
+                  imgBox.appendChild(img);
+                  console.log('[Enrich] Image injected for', brand, name);
+                }
+              }
+            }
+
+            // Re-save snapshot — data-direct-link is now baked into the HTML
             saveConvSnapshot();
             return;
           }
         } catch(e) {}
       }
     }
-  } catch(e) { console.warn('[Enrich] failed for', brand, name); }
+  } catch(e) { console.warn('[Enrich] failed for', brand, name, e.message); }
 }
 
 function enrichTextProducts(bubble) {
