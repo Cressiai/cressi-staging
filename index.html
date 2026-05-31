@@ -1109,10 +1109,11 @@ function renderRealProducts(products) {
     const link      = p.product_url || p.link || p.url || '#';
     const isTop     = i === 0;
     const _initial  = (brand || name || '✦').charAt(0).toUpperCase();
-    const proxiedImg = imgUrl ? `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl)}&w=200&h=200&fit=cover&output=jpg` : '';
-    const imgHtml   = `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+    if (i === 0) console.log('[Img] first product fields:', JSON.stringify({name, brand, imgUrl: imgUrl.slice(0,80), link: link.slice(0,80)}));
+    const proxied = imgUrl ? `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl)}&w=300&h=300&fit=cover` : '';
+    const imgHtml = `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
         <span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--border-med);opacity:0.6;">${_initial}</span>
-        ${proxiedImg ? `<img src="${proxiedImg}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">` : ''}
+        ${imgUrl ? `<img src="${imgUrl}" referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="if(this.dataset.tried){this.style.display='none';}else{this.dataset.tried='1';this.src='${proxied}';}">` : ''}
       </div>`;
     return `
     <div class="resp-card ${isTop ? 'resp-card-top' : ''}">
