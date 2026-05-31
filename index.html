@@ -1130,18 +1130,21 @@ function renderRealProducts(products) {
     const link      = p.product_url || p.link || p.url || '#';
     const isTop     = i === 0;
     const _initial  = (brand || name || '✦').charAt(0).toUpperCase();
-    console.log(`[Img] card ${i}:`, {name: name.slice(0,30), brand: brand.slice(0,20), imgUrl: imgUrl.slice(0,80), link: link.slice(0,60)});
-    // Use &amp; so HTML parser decodes it back to & inside the JS event handler
-    const proxiedHtml = imgUrl
+    const isDataUri = imgUrl.startsWith('data:');
+    console.log(`[Img] card ${i}:`, {name: name.slice(0,30), isDataUri, imgUrl: imgUrl.slice(0,40), link: link.slice(0,60)});
+    // Data URIs are self-contained — use directly. Regular URLs get a weserv proxy fallback.
+    const proxiedHtml = (!isDataUri && imgUrl)
       ? `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl)}&amp;w=300&amp;h=300&amp;fit=cover&amp;output=jpg`
       : '';
-    // Image sits absolutely over the letter placeholder — no nested wrapper needed
+    const onerrorAttr = (!isDataUri && proxiedHtml)
+      ? `onerror="if(this.dataset.tried){this.style.display='none';}else{this.dataset.tried='1';this.src='${proxiedHtml}';}" `
+      : '';
+    // Image sits absolutely over the letter placeholder
     const imgTag = imgUrl
-      ? `<img src="${imgUrl}" referrerpolicy="no-referrer" data-orig="${imgUrl.replace(/"/g,'&quot;')}"
+      ? `<img src="${imgUrl}" referrerpolicy="no-referrer"
            style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;"
            onload="console.log('[Img] loaded ✅ card ${i}')"
-           onerror="if(this.dataset.tried){this.style.display='none';console.log('[Img] both failed ❌ card ${i}');}else{this.dataset.tried='1';this.src='${proxiedHtml}';console.log('[Img] trying proxy card ${i}');}"`
-      + `>`
+           ${onerrorAttr}>`
       : '';
     return `
     <div class="resp-card ${isTop ? 'resp-card-top' : ''}">
@@ -1188,8 +1191,15 @@ async function streamCressi({prompt, imageUrl}) {
 // Fires silent calls for text-parsed product cards to get real images + links
 // ══════════════════════════════════════════════
 
-// Fetch image through weserv proxy → convert to blob URL so hotlink protection is bypassed entirely
+// Load image — handles data URIs directly and uses weserv proxy for regular URLs
 async function loadImageToBlob(imgUrl) {
+  if (!imgUrl) return null;
+  // Already a self-contained image (base64 data URI) — use directly, no proxy needed
+  if (imgUrl.startsWith('data:')) {
+    console.log('[Img] data URI ✅ using directly');
+    return imgUrl;
+  }
+  // Regular URL — fetch through weserv proxy to bypass hotlink protection
   try {
     const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl)}&w=220&h=220&fit=cover&output=jpg`;
     const resp = await fetch(proxyUrl);
