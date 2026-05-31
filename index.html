@@ -735,6 +735,8 @@ function restoreConv(threadId, query) {
     firstMsg = false;
     isStreaming = false;
     setTopbar(query || conv.query || '');
+    // Instantly restore any enriched images from cache (no API call needed)
+    applyCachedImages(msgsView);
     scrollBottom();
     return true;
   } catch(e) { return false; }
@@ -1191,28 +1193,56 @@ async function streamCressi({prompt, imageUrl}) {
 // Fires silent calls for text-parsed product cards to get real images + links
 // ══════════════════════════════════════════════
 
-// Load image — handles data URIs directly and uses weserv proxy for regular URLs
+// Load image as a data URI — works for data URIs and regular URLs via weserv proxy.
+// Returns a data URI string (not a blob URL) so it survives localStorage serialization.
 async function loadImageToBlob(imgUrl) {
   if (!imgUrl) return null;
-  // Already a self-contained image (base64 data URI) — use directly, no proxy needed
-  if (imgUrl.startsWith('data:')) {
-    console.log('[Img] data URI ✅ using directly');
-    return imgUrl;
-  }
-  // Regular URL — fetch through weserv proxy to bypass hotlink protection
+  // Already a self-contained data URI — use directly
+  if (imgUrl.startsWith('data:')) return imgUrl;
+  // Regular URL — proxy through weserv, then convert blob → data URI for persistence
   try {
     const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl)}&w=220&h=220&fit=cover&output=jpg`;
     const resp = await fetch(proxyUrl);
-    if (!resp.ok) { console.log('[Img] proxy HTTP error', resp.status, imgUrl.slice(0,60)); return null; }
+    if (!resp.ok) return null;
     const blob = await resp.blob();
-    if (!blob.size) { console.log('[Img] empty blob for', imgUrl.slice(0,60)); return null; }
-    const blobUrl = URL.createObjectURL(blob);
-    console.log('[Img] blob ready ✅', imgUrl.slice(0,60));
-    return blobUrl;
-  } catch(e) {
-    console.log('[Img] blob fetch failed:', e.message, imgUrl.slice(0,60));
-    return null;
-  }
+    if (!blob.size) return null;
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result); // data URI string
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch(e) { return null; }
+}
+
+// ── Image cache keyed by "brand::name" so images persist across sessions ──
+function cacheCardImage(brand, name, dataUri) {
+  try {
+    const cache = JSON.parse(localStorage.getItem('cressi_img_cache') || '{}');
+    cache[`${brand}::${name}`] = dataUri;
+    const entries = Object.entries(cache);
+    // Cap at 40 entries to stay within localStorage limits
+    const trimmed = entries.length > 40 ? entries.slice(-40) : entries;
+    localStorage.setItem('cressi_img_cache', JSON.stringify(Object.fromEntries(trimmed)));
+  } catch(e) {}
+}
+
+function applyCachedImages(container) {
+  try {
+    const cache = JSON.parse(localStorage.getItem('cressi_img_cache') || '{}');
+    container.querySelectorAll('[data-enrichable="true"]').forEach(card => {
+      if (card.querySelector('.resp-card-img img')) return; // already has image
+      const imgData = cache[`${card.dataset.brand}::${card.dataset.name}`];
+      if (!imgData) return;
+      const imgBox = card.querySelector('.resp-card-img');
+      if (!imgBox) return;
+      imgBox.style.position = 'relative';
+      const img = document.createElement('img');
+      img.src = imgData;
+      img.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;';
+      imgBox.appendChild(img);
+    });
+  } catch(e) {}
 }
 
 async function enrichOneCard(cardEl, brand, name) {
@@ -1258,23 +1288,25 @@ async function enrichOneCard(cardEl, brand, name) {
               }
             }
 
-            // Load image via fetch→blob (completely bypasses hotlink protection)
+            // Load image as data URI (persists in localStorage snapshots)
             if (imgUrl) {
-              const blobUrl = await loadImageToBlob(imgUrl);
-              if (blobUrl && document.contains(cardEl)) {
+              const dataUri = await loadImageToBlob(imgUrl); // returns data URI string
+              if (dataUri && document.contains(cardEl)) {
                 const imgBox = cardEl.querySelector('.resp-card-img');
                 if (imgBox) {
                   imgBox.style.position = 'relative';
                   const img = document.createElement('img');
-                  img.src = blobUrl;
+                  img.src = dataUri;
                   img.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;';
                   imgBox.appendChild(img);
                   console.log('[Enrich] Image injected for', brand, name);
+                  // Cache by brand::name so restored conversations get images instantly
+                  cacheCardImage(brand, name, dataUri);
                 }
               }
             }
 
-            // Re-save snapshot — data-direct-link is now baked into the HTML
+            // Re-save snapshot — image data URI is now baked into the HTML
             saveConvSnapshot();
             return;
           }
@@ -1332,19 +1364,17 @@ async function sendMsg(imageUrl) {
 
     const decoder = new TextDecoder();
     let fullText='', done=false, streamBuffer='';
-    let chunkCount = 0, hasTextProducts = false, hasSerperProducts = false;
+    let chunkCount = 0;
+    let serperEl = null; // the appended Serper section — kept separate so content chunks don't wipe it
 
     while (!done) {
       const {value, done:sd} = await reader.read();
       done=sd;
-      if (!value) {
-        if (sd) console.log('[Cressi] Stream ended after', chunkCount, 'chunks');
-        continue;
-      }
+      if (!value) { continue; }
       chunkCount++;
       streamBuffer += decoder.decode(value, {stream:true});
       const lines = streamBuffer.split('\n');
-      streamBuffer = lines.pop() || ''; // keep incomplete line in buffer
+      streamBuffer = lines.pop() || '';
       for (const line of lines) {
         if (!line.trim() || !line.startsWith('data: ')) continue;
         const raw = line.slice(6).trim();
@@ -1354,27 +1384,19 @@ async function sendMsg(imageUrl) {
           if (p.type === 'content' && p.content) {
             fullText += p.content;
             bubble.innerHTML = formatResponse(fullText);
-            // Track whether the AI curated specific picks in the text (PRODUCT: format)
-            if (!hasTextProducts) {
-              const { products: tp } = parseProducts(fullText);
-              if (tp.length > 0) hasTextProducts = true;
-            }
+            // Re-attach Serper section if a content chunk wiped it
+            if (serperEl && !bubble.contains(serperEl)) bubble.appendChild(serperEl);
             scrollBottom();
           } else if (p.type === 'products' && p.content) {
             const prods = Array.isArray(p.content) ? p.content : [];
-            console.log('[Cressi] products received:', prods.length, '| AI text picks:', hasTextProducts);
             if (prods.length) {
-              hasSerperProducts = true;
-              if (!hasTextProducts) {
-                // No AI-curated picks — show Serper cards as the primary display
-                const cards = renderRealProducts(prods);
-                const existing = bubble.querySelector('.resp-cards');
-                if (existing) existing.remove();
-                bubble.innerHTML = formatResponse(fullText) + `<div class="resp-cards">${cards}</div>`;
-                scrollBottom();
-              }
-              // If AI already curated picks: skip generic Serper cards entirely.
-              // enrichTextProducts will run after stream and add images to the good ones.
+              // Build/replace the Serper section — appended BELOW AI text picks
+              if (serperEl) serperEl.remove();
+              serperEl = document.createElement('div');
+              serperEl.className = 'resp-cards';
+              serperEl.innerHTML = renderRealProducts(prods.slice(0, 6));
+              bubble.appendChild(serperEl);
+              scrollBottom();
             }
           } else if (p.type === 'tool_call') {
             bubble.innerHTML = '<em style="opacity:0.5">Searching for the best options…</em>';
@@ -1391,12 +1413,10 @@ async function sendMsg(imageUrl) {
     }
 
     if (fullText) saveMessage({role:'Ai', message:fullText, chatUuid:currentThreadId});
-
-    // Save full conversation snapshot so clicking Recent restores it
     saveConvSnapshot();
 
-    // Always enrich AI-curated text picks with real images + direct links
-    if (hasTextProducts) enrichTextProducts(bubble);
+    // Enrich AI-curated text picks (PRODUCT: format cards) with images via background calls
+    enrichTextProducts(bubble);
 
     setTimeout(()=>addFollowUpChips(aiBlock),300);
 
