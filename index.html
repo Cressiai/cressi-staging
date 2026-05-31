@@ -1161,7 +1161,7 @@ async function streamCressi({prompt, imageUrl}) {
 async function enrichOneCard(cardEl, brand, name) {
   try {
     if (!document.contains(cardEl)) return;
-    const query = `find me ${brand} ${name}`;
+    const query = `show me the ${brand} ${name}`;
     const res = await fetch(API.chatbot, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ prompt: query, user_id: currentUserId||1, thread_id:'', s3_image_url:'', shop_for_others:false })
