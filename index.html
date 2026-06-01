@@ -1257,7 +1257,7 @@ function applyCachedImages(container) {
 async function enrichOneCard(cardEl, brand, name) {
   try {
     if (!document.contains(cardEl)) return;
-    const query = `women's ${brand} ${name}`;
+    const query = `show me the women's ${brand} ${name}`;
     const res = await fetch(API.chatbot, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ prompt: query, user_id: currentUserId||1, thread_id:'', s3_image_url:'', shop_for_others:false })
@@ -1333,12 +1333,56 @@ async function enrichOneCard(cardEl, brand, name) {
   } catch(e) { console.warn('[Enrich] failed for', brand, name, e.message); }
 }
 
-function enrichTextProducts(bubble) {
+function enrichTextProducts(bubble, serperProds) {
   const cards = bubble.querySelectorAll('[data-enrichable="true"]');
-  console.log('[Enrich] Starting enrichment for', cards.length, 'cards');
+  if (!cards.length) return;
+  console.log('[Enrich] Starting enrichment for', cards.length, 'cards, Serper pool:', (serperProds||[]).length);
+
   cards.forEach(card => {
-    console.log('[Enrich] Enriching:', card.dataset.brand, '—', card.dataset.name);
-    enrichOneCard(card, card.dataset.brand||'', card.dataset.name||'');
+    const brand = card.dataset.brand || '';
+    const name  = card.dataset.name  || '';
+
+    // ── Fast path: try to match against already-downloaded Serper images ──
+    // Serper products are different items but can share brand or style keywords
+    if (serperProds && serperProds.length) {
+      const bLow = brand.toLowerCase();
+      const nWords = name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+      // Prefer a brand match; fall back to any keyword overlap
+      const match =
+        serperProds.find(sp => {
+          const spText = ((sp.brand||sp.source||'') + ' ' + (sp.name||sp.title||'')).toLowerCase();
+          return bLow && spText.includes(bLow);
+        }) ||
+        serperProds.find(sp => {
+          const spText = (sp.name||sp.title||'').toLowerCase();
+          return nWords.some(w => spText.includes(w));
+        });
+
+      if (match) {
+        const imgUrl = match.image_url || match.imageUrl || match.thumbnail || '';
+        if (imgUrl) {
+          console.log('[Enrich] Serper match for', brand, name, '→', (match.name||match.title||'').slice(0,40));
+          loadImageToBlob(imgUrl).then(dataUri => {
+            if (!dataUri || !document.contains(card)) return;
+            const imgBox = card.querySelector('.resp-card-img');
+            if (!imgBox || imgBox.querySelector('img')) return;
+            imgBox.style.position = 'relative';
+            const img = document.createElement('img');
+            img.src = dataUri;
+            img.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;';
+            imgBox.appendChild(img);
+            cacheCardImage(brand, name, dataUri);
+            saveConvSnapshot();
+            console.log('[Enrich] Image applied (Serper match) for', brand, name);
+          });
+          return; // matched — skip the slow API call
+        }
+      }
+    }
+
+    // ── Slow path: no Serper match → fire a background API call ──
+    console.log('[Enrich] No Serper match, API enriching:', brand, '—', name);
+    enrichOneCard(card, brand, name);
   });
 }
 
@@ -1382,7 +1426,8 @@ async function sendMsg(imageUrl) {
     const decoder = new TextDecoder();
     let fullText='', done=false, streamBuffer='';
     let chunkCount = 0;
-    let serperEl = null; // the appended Serper section — kept separate so content chunks don't wipe it
+    let serperEl = null;      // the appended Serper section — kept separate so content chunks don't wipe it
+    let serperProds = [];     // hold Serper products for instant enrichment of AI text cards
 
     while (!done) {
       const {value, done:sd} = await reader.read();
@@ -1407,6 +1452,7 @@ async function sendMsg(imageUrl) {
           } else if (p.type === 'products' && p.content) {
             const prods = Array.isArray(p.content) ? p.content : [];
             if (prods.length) {
+              serperProds = prods; // save for enriching AI text cards below
               // Build/replace the Serper section — appended BELOW AI text picks
               if (serperEl) serperEl.remove();
               serperEl = document.createElement('div');
@@ -1432,8 +1478,8 @@ async function sendMsg(imageUrl) {
     if (fullText) saveMessage({role:'Ai', message:fullText, chatUuid:currentThreadId});
     saveConvSnapshot();
 
-    // Enrich AI-curated text picks (PRODUCT: format cards) with images via background calls
-    enrichTextProducts(bubble);
+    // Enrich AI-curated text picks: use Serper images we already have, fall back to API calls
+    enrichTextProducts(bubble, serperProds);
 
     setTimeout(()=>addFollowUpChips(aiBlock),300);
 
