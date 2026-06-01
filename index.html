@@ -717,9 +717,17 @@ function saveConvSnapshot() {
   try {
     const convs = JSON.parse(localStorage.getItem(CONV_KEY)||'{}');
     convs[currentThreadId] = { html: msgsView.innerHTML, ts: Date.now() };
-    // Keep only 15 most recent conversations
     const trimmed = Object.entries(convs).sort((a,b)=>b[1].ts-a[1].ts).slice(0,15);
     localStorage.setItem(CONV_KEY, JSON.stringify(Object.fromEntries(trimmed)));
+
+    // Back-fill threadId into the history entry — addHistory fires before currentThreadId
+    // is known, so the entry was saved with threadId:null. Fix it here.
+    const hist = getHistory();
+    const entry = hist.find(h => !h.threadId); // newest entry without a threadId
+    if (entry) {
+      entry.threadId = currentThreadId;
+      localStorage.setItem(HIST_KEY, JSON.stringify(hist));
+    }
   } catch(e) { console.warn('[Cressi] Conv save failed', e); }
 }
 
@@ -1249,7 +1257,7 @@ function applyCachedImages(container) {
 async function enrichOneCard(cardEl, brand, name) {
   try {
     if (!document.contains(cardEl)) return;
-    const query = `${brand} ${name} buy`;
+    const query = `women's ${brand} ${name}`;
     const res = await fetch(API.chatbot, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ prompt: query, user_id: currentUserId||1, thread_id:'', s3_image_url:'', shop_for_others:false })
@@ -1258,6 +1266,7 @@ async function enrichOneCard(cardEl, brand, name) {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buf = '';
+    const maleTerms = ["men's", " men ", "male ", "boys'", " mens "];
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -1272,7 +1281,14 @@ async function enrichOneCard(cardEl, brand, name) {
           if (p.type === 'products' && Array.isArray(p.content) && p.content.length) {
             try { reader.cancel(); } catch(e){}
             if (!document.contains(cardEl)) return;
-            const prod = p.content[0];
+            // Skip male-flagged products unless the card itself is male
+            const cardLower = name.toLowerCase();
+            const cardIsMale = maleTerms.some(t => cardLower.includes(t));
+            const prod = p.content.find(item => {
+              const pName = (' ' + (item.name||item.title||'') + ' ').toLowerCase();
+              const isMale = maleTerms.some(t => pName.includes(t));
+              return cardIsMale ? true : !isMale; // for women's cards, skip male results
+            }) || p.content[0];
             console.log('[Enrich] Got product for', brand, name, '→', JSON.stringify({
               imgUrl: (prod.image_url||prod.imageUrl||prod.thumbnail||'').slice(0,80),
               link: (prod.product_url||prod.link||prod.url||'').slice(0,80)
