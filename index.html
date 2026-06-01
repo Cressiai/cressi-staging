@@ -1334,56 +1334,33 @@ async function enrichOneCard(cardEl, brand, name) {
   } catch(e) { console.warn('[Enrich] failed for', brand, name, e.message); }
 }
 
-function enrichTextProducts(bubble, serperProds) {
+function enrichTextProducts(bubble) {
   const cards = bubble.querySelectorAll('[data-enrichable="true"]');
   if (!cards.length) return;
-  console.log('[Enrich] Starting enrichment for', cards.length, 'cards, Serper pool:', (serperProds||[]).length);
-
-  cards.forEach(card => {
+  console.log('[Enrich] Starting enrichment for', cards.length, 'cards');
+  // Stagger calls slightly so the server isn't hit all at once
+  cards.forEach((card, idx) => {
     const brand = card.dataset.brand || '';
     const name  = card.dataset.name  || '';
-
-    // ── Fast path: try to match against already-downloaded Serper images ──
-    // Serper products are different items but can share brand or style keywords
-    if (serperProds && serperProds.length) {
-      const bLow = brand.toLowerCase();
-      const nWords = name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-      // Prefer a brand match; fall back to any keyword overlap
-      const match =
-        serperProds.find(sp => {
-          const spText = ((sp.brand||sp.source||'') + ' ' + (sp.name||sp.title||'')).toLowerCase();
-          return bLow && spText.includes(bLow);
-        }) ||
-        serperProds.find(sp => {
-          const spText = (sp.name||sp.title||'').toLowerCase();
-          return nWords.some(w => spText.includes(w));
-        });
-
-      if (match) {
-        const imgUrl = match.image_url || match.imageUrl || match.thumbnail || '';
-        if (imgUrl) {
-          console.log('[Enrich] Serper match for', brand, name, '→', (match.name||match.title||'').slice(0,40));
-          loadImageToBlob(imgUrl).then(dataUri => {
-            if (!dataUri || !document.contains(card)) return;
-            const imgBox = card.querySelector('.resp-card-img');
-            if (!imgBox || imgBox.querySelector('img')) return;
-            imgBox.style.position = 'relative';
-            const img = document.createElement('img');
-            img.src = dataUri;
-            img.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;';
-            imgBox.appendChild(img);
-            cacheCardImage(brand, name, dataUri);
-            saveConvSnapshot();
-            console.log('[Enrich] Image applied (Serper match) for', brand, name);
-          });
-          return; // matched — skip the slow API call
+    // Check cache first — no API call needed if we already have this image
+    try {
+      const cache = JSON.parse(localStorage.getItem('cressi_img_cache') || '{}');
+      const cached = cache[`${brand}::${name}`];
+      if (cached) {
+        const imgBox = card.querySelector('.resp-card-img');
+        if (imgBox && !imgBox.querySelector('img')) {
+          imgBox.style.position = 'relative';
+          const img = document.createElement('img');
+          img.src = cached;
+          img.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;';
+          imgBox.appendChild(img);
+          console.log('[Enrich] Cache hit for', brand, name);
+          return;
         }
       }
-    }
-
-    // ── Slow path: no Serper match → fire a background API call ──
-    console.log('[Enrich] No Serper match, API enriching:', brand, '—', name);
-    enrichOneCard(card, brand, name);
+    } catch(e) {}
+    // Fire individual API call per card, staggered 2s apart so server isn't slammed
+    setTimeout(() => enrichOneCard(card, brand, name), idx * 2000);
   });
 }
 
