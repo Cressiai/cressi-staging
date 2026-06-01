@@ -1169,7 +1169,7 @@ function renderRealProducts(products, showBadge = true) {
         ${brand ? `<div class="resp-card-brand">${brand}</div>` : ''}
         <div class="resp-card-name">${name}</div>
         ${price ? `<div class="resp-card-price">${price}</div>` : ''}
-        <a href="${link}" target="_blank" rel="noopener noreferrer" class="resp-card-btn">Shop →</a>
+        <button class="resp-card-btn" data-r="${brand.replace(/"/g,'&quot;')}" data-q="${(brand+' '+name).replace(/"/g,'&quot;')}" ${(!link.includes('google.com') && link !== '#') ? `data-direct-link="${link.replace(/"/g,'&quot;')}"` : ''} onclick="openShop(this,this.dataset.r,this.dataset.q)">Shop →</button>
       </div>
     </div>`;
   }).join('');
@@ -1296,8 +1296,9 @@ async function enrichOneCard(cardEl, brand, name) {
             const imgUrl = prod.image_url || prod.imageUrl || prod.thumbnail || '';
             const link   = prod.product_url || prod.link || prod.url || '';
 
-            // Store direct link as data attribute — survives innerHTML serialization
-            if (link) {
+            // Only store direct link if it's an actual product page (not a Google Shopping search)
+            const isRealProductLink = link && link !== '#' && !link.includes('google.com') && !link.includes('google.co');
+            if (isRealProductLink) {
               const btn = cardEl.querySelector('.resp-card-btn');
               if (btn) {
                 btn.dataset.directLink = link;
@@ -1395,6 +1396,10 @@ async function sendMsg(imageUrl) {
   isStreaming = true;
   showChat();
   tasteProfile.recentSearches.push(val);
+
+  // Generate a local thread ID now so history + snapshots always work,
+  // even before the backend returns its UUID.
+  if (!currentThreadId) currentThreadId = 'lc_' + Date.now().toString(36);
   addHistory(val);
   setTopbar(val);
 
@@ -1405,9 +1410,23 @@ async function sendMsg(imageUrl) {
   msgsView.appendChild(userBlock); scrollBottom();
   chatInput.value=''; chatInput.style.height='auto';
 
-  // Save user msg
+  // Save user msg — when backend returns its UUID, migrate our local ID over
+  const _localId = currentThreadId;
   saveMessage({role:'User', message:val, chatUuid:currentThreadId, imageUrl})
-    .then(d => { if(d?.chat_uuid && !currentThreadId) currentThreadId=d.chat_uuid; });
+    .then(d => {
+      if (d?.chat_uuid && d.chat_uuid !== _localId) {
+        try {
+          // Migrate conv snapshot key
+          const convs = JSON.parse(localStorage.getItem(CONV_KEY)||'{}');
+          if (convs[_localId]) { convs[d.chat_uuid] = convs[_localId]; delete convs[_localId]; localStorage.setItem(CONV_KEY, JSON.stringify(convs)); }
+          // Migrate history entry
+          const hist = getHistory();
+          const entry = hist.find(h => h.threadId === _localId);
+          if (entry) { entry.threadId = d.chat_uuid; localStorage.setItem(HIST_KEY, JSON.stringify(hist)); }
+        } catch(e) {}
+        currentThreadId = d.chat_uuid;
+      }
+    });
 
   showTyping();
 
