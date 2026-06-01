@@ -1033,6 +1033,37 @@ const RETAILER_SEARCH = {
   'j crew':            q => `https://www.jcrew.com/search2/index.jsp?q=${encodeURIComponent(q)}`,
   'zara':              q => `https://www.zara.com/us/en/search?searchTerm=${encodeURIComponent(q)}`,
   'other stories':     q => `https://www.stories.com/en_usd/search.html?q=${encodeURIComponent(q)}`,
+  'urban outfitters':  q => `https://www.urbanoutfitters.com/search?q=${encodeURIComponent(q)}`,
+  'urban outfitter':   q => `https://www.urbanoutfitters.com/search?q=${encodeURIComponent(q)}`,
+  'abercrombie':       q => `https://www.abercrombie.com/shop/us/search?query=${encodeURIComponent(q)}`,
+  'hollister':         q => `https://www.hollisterco.com/shop/us/search?query=${encodeURIComponent(q)}`,
+  'h&m':               q => `https://www2.hm.com/en_us/search-results.html?q=${encodeURIComponent(q)}`,
+  'h & m':             q => `https://www2.hm.com/en_us/search-results.html?q=${encodeURIComponent(q)}`,
+  'asos':              q => `https://www.asos.com/us/search/?q=${encodeURIComponent(q)}`,
+  'lulus':             q => `https://www.lulus.com/search/?query=${encodeURIComponent(q)}`,
+  'old navy':          q => `https://oldnavy.gap.com/browse/search.do?searchText=${encodeURIComponent(q)}`,
+  'target':            q => `https://www.target.com/s?searchTerm=${encodeURIComponent(q)}`,
+  'gap':               q => `https://www.gap.com/browse/search.do?searchText=${encodeURIComponent(q)}`,
+  'express':           q => `https://www.express.com/search?keyword=${encodeURIComponent(q)}`,
+  'victoria':          q => `https://www.victoriassecret.com/us/search?q=${encodeURIComponent(q)}`,
+  'pink':              q => `https://www.victoriassecret.com/us/search?q=${encodeURIComponent(q)}`,
+  'forever 21':        q => `https://www.forever21.com/us/search?q=${encodeURIComponent(q)}`,
+  'mango':             q => `https://shop.mango.com/us/search?q=${encodeURIComponent(q)}`,
+  'cos':               q => `https://www.cos.com/en_usd/search.html?q=${encodeURIComponent(q)}`,
+  'uniqlo':            q => `https://www.uniqlo.com/us/en/search?q=${encodeURIComponent(q)}`,
+  'amazon':            q => `https://www.amazon.com/s?k=${encodeURIComponent(q)}`,
+  // Swimwear brands
+  'solid & striped':   q => `https://www.solidandstriped.com/search?q=${encodeURIComponent(q)}`,
+  'solid and striped': q => `https://www.solidandstriped.com/search?q=${encodeURIComponent(q)}`,
+  'hunza':             q => `https://www.net-a-porter.com/en-us/shop/search?keywords=${encodeURIComponent(q)}`,
+  'zimmermann':        q => `https://www.zimmermannwear.com/search?q=${encodeURIComponent(q)}`,
+  'marysia':           q => `https://www.marysia.com/search?q=${encodeURIComponent(q)}`,
+  'vitamin a':         q => `https://www.shopbop.com/search/?query=${encodeURIComponent(q)}`,
+  'onia':              q => `https://www.onia.com/search?q=${encodeURIComponent(q)}`,
+  'cupshe':            q => `https://www.cupshe.com/search?q=${encodeURIComponent(q)}`,
+  'roxy':              q => `https://www.roxy.com/search?q=${encodeURIComponent(q)}`,
+  'lspace':            q => `https://lspaceswim.com/search?q=${encodeURIComponent(q)}`,
+  'l space':           q => `https://lspaceswim.com/search?q=${encodeURIComponent(q)}`,
 };
 
 // Brand-only fallback — when retailer is unknown, try brand's own site or Farfetch
@@ -1068,8 +1099,8 @@ function openShop(btn, retailer, q) {
   // 3. Try brand map (brand name is part of the query "Brand Name Product")
   const bMatch = Object.keys(BRAND_SEARCH).find(k => bKey.startsWith(k));
   if (bMatch) { window.open(BRAND_SEARCH[bMatch](q), '_blank'); return; }
-  // 4. Default: Farfetch (better than Google for fashion)
-  window.open(`https://www.farfetch.com/shopping/women/search/items.aspx?q=${encodeURIComponent(q)}`, '_blank');
+  // 4. Default: Google search — works for any retailer we don't have mapped
+  window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
 }
 
 function renderProductCards(products) {
