@@ -1169,7 +1169,7 @@ function renderRealProducts(products, showBadge = true) {
         ${brand ? `<div class="resp-card-brand">${brand}</div>` : ''}
         <div class="resp-card-name">${name}</div>
         ${price ? `<div class="resp-card-price">${price}</div>` : ''}
-        <button class="resp-card-btn" data-r="${brand.replace(/"/g,'&quot;')}" data-q="${(brand+' '+name).replace(/"/g,'&quot;')}" ${(!link.includes('google.com') && link !== '#') ? `data-direct-link="${link.replace(/"/g,'&quot;')}"` : ''} onclick="openShop(this,this.dataset.r,this.dataset.q)">Shop →</button>
+        <button class="resp-card-btn" data-r="${brand.replace(/"/g,'&quot;')}" data-q="${(brand+' '+name).replace(/"/g,'&quot;')}" onclick="openShop(this,this.dataset.r,this.dataset.q)">Shop →</button>
       </div>
     </div>`;
   }).join('');
@@ -1298,17 +1298,9 @@ async function enrichOneCard(cardEl, brand, name) {
               link: (prod.product_url||prod.link||prod.url||'').slice(0,80)
             }));
             const imgUrl = prod.image_url || prod.imageUrl || prod.thumbnail || '';
-            const link   = prod.product_url || prod.link || prod.url || '';
 
-            // Only store direct link if it's an actual product page (not a Google Shopping search)
-            const isRealProductLink = link && link !== '#' && !link.includes('google.com') && !link.includes('google.co');
-            if (isRealProductLink) {
-              const btn = cardEl.querySelector('.resp-card-btn');
-              if (btn) {
-                btn.dataset.directLink = link;
-                console.log('[Enrich] Direct link saved for', brand, name, '→', link.slice(0,80));
-              }
-            }
+            // Don't save direct product URLs — they go stale (sold out / URL changes).
+            // openShop() will use retailer search instead, which always shows live inventory.
 
             // Load image as data URI (persists in localStorage snapshots)
             if (imgUrl) {
