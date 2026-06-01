@@ -220,6 +220,8 @@
   .resp-card-rationale { font-family:'Cormorant Garamond',serif; font-size:12px; font-style:italic; color:var(--smoke); opacity:0.7; line-height:1.45; margin-bottom:8px; border-top:1px solid var(--border); padding-top:6px; }
   .resp-card-btn { font-size:6.5px; letter-spacing:0.16em; text-transform:uppercase; padding:5px 10px; border:1px solid var(--ink); color:var(--ink); border-radius:1px; cursor:pointer; transition:all 0.14s; background:transparent; align-self:flex-start; }
   .resp-card-btn:hover { background:var(--ink); color:var(--white); }
+  .resp-wish-btn { background:none; border:1px solid var(--border-med); border-radius:1px; padding:5px 9px; cursor:pointer; font-size:13px; color:var(--smoke); opacity:0.55; transition:all 0.14s; line-height:1; align-self:flex-start; }
+  .resp-wish-btn:hover, .resp-wish-btn.saved { border-color:var(--gold); color:var(--gold); opacity:1; }
 </style>
 <style>
   .ob-overlay {
@@ -478,7 +480,7 @@
     </div>
     <div class="nav-section">
       <span class="nav-section-label">Menu</span>
-      <div class="nav-item active" data-nav="cressi" onclick="switchNav('cressi')"><span class="nav-icon">✦</span><span class="nav-label">Hey Cressi</span></div>
+      <div class="nav-item active" data-nav="cressi" onclick="clearChat();switchNav('cressi');"><span class="nav-icon">✦</span><span class="nav-label">Hey Cressi</span></div>
       <div class="nav-item" data-nav="wishlist" onclick="switchNav('wishlist')"><span class="nav-icon">♡</span><span class="nav-label">Wishlist</span><span class="nav-badge" id="wishBadge">0</span></div>
       <div class="nav-item" data-nav="profile" onclick="switchNav('profile')"><span class="nav-icon">◈</span><span class="nav-label">Profiles</span></div>
       <div class="nav-item" style="opacity:0.35;cursor:default;pointer-events:none;"><span class="nav-icon">◻</span><span class="nav-label">Shop for Others</span><span style="margin-left:auto;font-size:6px;letter-spacing:0.12em;text-transform:uppercase;color:var(--smoke);opacity:0.6;">Soon</span></div>
@@ -882,11 +884,66 @@ function buildTasteContext() {
   } catch { return ''; }
 }
 
+// ══════════════════════════════════════════════
+// TASTE MEMORY — learns preferences from clicks
+// ══════════════════════════════════════════════
+const TASTE_MEM_KEY = 'cressi_taste_memory';
+
+function recordTasteClick(action, product) {
+  try {
+    const mem = JSON.parse(localStorage.getItem(TASTE_MEM_KEY) || '{"clicks":[]}');
+    mem.clicks = mem.clicks || [];
+    mem.clicks.push({
+      action,
+      brand:    (product.brand    || '').trim(),
+      name:     (product.name     || '').trim(),
+      price:    (product.price    || '').trim(),
+      retailer: (product.retailer || '').trim(),
+      ts: Date.now()
+    });
+    if (mem.clicks.length > 200) mem.clicks = mem.clicks.slice(-200);
+    localStorage.setItem(TASTE_MEM_KEY, JSON.stringify(mem));
+  } catch(e) {}
+}
+
+function getMemoryContext() {
+  try {
+    const mem = JSON.parse(localStorage.getItem(TASTE_MEM_KEY) || '{"clicks":[]}');
+    const clicks = (mem.clicks || []).filter(c => c.brand || c.name);
+    if (clicks.length < 2) return '';
+    const brands = {}, retailers = {}, prices = [], styles = {};
+    const STYLE_WORDS = ['minimalist','scalloped','ribbed','crochet','floral','printed','solid','stripe',
+      'triangle','halter','bandeau','one-piece','bikini','high-waist','cut-out','ruched',
+      'vintage','retro','sporty','elegant','luxe','bohemian','structured','relaxed','drapey'];
+    clicks.forEach(c => {
+      if (c.brand)    brands[c.brand]       = (brands[c.brand]    || 0) + (c.action==='wishlist' ? 2 : 1);
+      if (c.retailer) retailers[c.retailer] = (retailers[c.retailer] || 0) + 1;
+      const n = parseInt((c.price||'').replace(/[^0-9]/g,''));
+      if (!isNaN(n) && n > 0) prices.push(n);
+      const text = (c.name + ' ').toLowerCase();
+      STYLE_WORDS.forEach(w => { if (text.includes(w)) styles[w] = (styles[w]||0)+1; });
+    });
+    const topBrands    = Object.entries(brands).sort((a,b)=>b[1]-a[1]).slice(0,4).map(e=>e[0]).filter(Boolean);
+    const topStyles    = Object.entries(styles).sort((a,b)=>b[1]-a[1]).slice(0,4).map(e=>e[0]).filter(Boolean);
+    const topRetailers = Object.entries(retailers).sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>e[0]).filter(Boolean);
+    const avgPrice     = prices.length ? Math.round(prices.reduce((a,b)=>a+b,0)/prices.length) : 0;
+    const parts = [];
+    if (topBrands.length)    parts.push(`Previously engaged with: ${topBrands.join(', ')}`);
+    if (topStyles.length)    parts.push(`Style signals: ${topStyles.join(', ')}`);
+    if (avgPrice > 0)        parts.push(`Typical spend: ~$${avgPrice}`);
+    if (topRetailers.length) parts.push(`Shops at: ${topRetailers.join(', ')}`);
+    return parts.join('. ');
+  } catch(e) { return ''; }
+}
+
+// ══════════════════════════════════════════════
 // Builds the enriched prompt sent to the API.
 // Prepends taste context so Cressi always knows
 // who she's shopping for before she responds.
+// ══════════════════════════════════════════════
 function buildEnrichedPrompt(userMessage) {
   const ctx = buildTasteContext();
+  const mem = getMemoryContext();
   const sf = tasteProfile.shopsFor || 'Women\'s';
   const genderLine = sf === 'Both'
     ? ''
@@ -898,8 +955,9 @@ PRODUCT: [Brand] | [Product Name] | [Price] | [Retailer] | [One sentence why thi
 
 Maximum 3 products. Lead with the strongest pick. After products, offer 1 follow-up question.`;
 
-  if (!ctx) return userMessage + formatInstruction;
-  return `[Shopper context — ${ctx}]\n\n${userMessage}${formatInstruction}`;
+  const contextParts = [ctx, mem ? `Taste memory — ${mem}` : ''].filter(Boolean).join('. ');
+  if (!contextParts) return userMessage + formatInstruction;
+  return `[Shopper context — ${contextParts}]\n\n${userMessage}${formatInstruction}`;
 }
 
 // ══════════════════════════════════════════════
@@ -1086,7 +1144,18 @@ const BRAND_SEARCH = {
 };
 
 function openShop(btn, retailer, q) {
-  // 1. If enrichment already stored a direct product link — use it
+  // Record taste click for memory
+  try {
+    const card = btn && (btn.closest('[data-enrichable="true"]') || btn.closest('.resp-card'));
+    recordTasteClick('shop', {
+      brand:    card?.dataset.brand    || (q||'').split(' ').slice(0,2).join(' '),
+      name:     card?.dataset.name     || q || '',
+      price:    card?.querySelector('.resp-card-price')?.textContent?.trim() || '',
+      retailer: retailer || ''
+    });
+  } catch(e) {}
+
+  // 1. If enrichment stored a direct product link — use it
   if (btn && btn.dataset && btn.dataset.directLink) {
     window.open(btn.dataset.directLink, '_blank');
     return;
@@ -1096,11 +1165,11 @@ function openShop(btn, retailer, q) {
   // 2. Try retailer search map
   const rMatch = Object.keys(RETAILER_SEARCH).find(k => rKey.includes(k));
   if (rMatch) { window.open(RETAILER_SEARCH[rMatch](q), '_blank'); return; }
-  // 3. Try brand map (brand name is part of the query "Brand Name Product")
+  // 3. Try brand map
   const bMatch = Object.keys(BRAND_SEARCH).find(k => bKey.startsWith(k));
   if (bMatch) { window.open(BRAND_SEARCH[bMatch](q), '_blank'); return; }
-  // 4. Default: Google search — works for any retailer we don't have mapped
-  window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
+  // 4. Google Shopping — shows exact product with prices across all retailers
+  window.open(`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q)}`, '_blank');
 }
 
 function renderProductCards(products) {
@@ -1125,7 +1194,10 @@ function renderProductCards(products) {
         <div class="resp-card-name">${name}</div>
         ${price ? `<div class="resp-card-price">${price}</div>` : ''}
         ${rationale ? `<div class="resp-card-rationale">${rationale}</div>` : ''}
-        <button class="resp-card-btn" data-r="${retailer.replace(/"/g,'&quot;')}" data-q="${(brand+' '+name).replace(/"/g,'&quot;')}" onclick="openShop(this,this.dataset.r,this.dataset.q)">Shop →</button>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="resp-card-btn" data-r="${retailer.replace(/"/g,'&quot;')}" data-q="${(brand+' '+name).replace(/"/g,'&quot;')}" onclick="openShop(this,this.dataset.r,this.dataset.q)">Shop →</button>
+          <button class="resp-wish-btn" data-product="${JSON.stringify({brand,name,price,retailer}).replace(/"/g,'&quot;')}" onclick="event.stopPropagation();handleWishToggle2(this)" title="Save to Wishlist">♡</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1200,7 +1272,10 @@ function renderRealProducts(products, showBadge = true) {
         ${brand ? `<div class="resp-card-brand">${brand}</div>` : ''}
         <div class="resp-card-name">${name}</div>
         ${price ? `<div class="resp-card-price">${price}</div>` : ''}
-        <button class="resp-card-btn" data-r="${brand.replace(/"/g,'&quot;')}" data-q="${(brand+' '+name).replace(/"/g,'&quot;')}" onclick="openShop(this,this.dataset.r,this.dataset.q)">Shop →</button>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="resp-card-btn" data-r="${brand.replace(/"/g,'&quot;')}" data-q="${(brand+' '+name).replace(/"/g,'&quot;')}" onclick="openShop(this,this.dataset.r,this.dataset.q)">Shop →</button>
+          <button class="resp-wish-btn" data-product="${JSON.stringify({brand,name,price,retailer}).replace(/"/g,'&quot;')}" onclick="event.stopPropagation();handleWishToggle2(this)" title="Save to Wishlist">♡</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1914,6 +1989,16 @@ function handleWishToggle(btn, idx) {
   const product = window._wishProducts[idx];
   if (!product) return;
   toggleWishlist(product, btn);
+}
+
+// Used by inline ♡ buttons on product cards
+function handleWishToggle2(btn) {
+  try {
+    const product = JSON.parse(btn.dataset.product);
+    const wasWishlisted = isWishlisted(product);
+    toggleWishlist(product, btn);
+    if (!wasWishlisted) recordTasteClick('wishlist', product);
+  } catch(e) {}
 }
 
 // Update badge on load
