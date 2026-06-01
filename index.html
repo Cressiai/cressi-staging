@@ -1258,10 +1258,14 @@ async function enrichOneCard(cardEl, brand, name) {
   try {
     if (!document.contains(cardEl)) return;
     const query = `show me the women's ${brand} ${name}`;
+    const ctrl  = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000); // 15s max per card
     const res = await fetch(API.chatbot, {
       method: 'POST', headers: {'Content-Type':'application/json'},
+      signal: ctrl.signal,
       body: JSON.stringify({ prompt: query, user_id: currentUserId||1, thread_id:'', s3_image_url:'', shop_for_others:false })
     });
+    clearTimeout(timer);
     if (!res.ok) return;
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -1331,18 +1335,20 @@ async function enrichOneCard(cardEl, brand, name) {
         } catch(e) {}
       }
     }
-  } catch(e) { console.warn('[Enrich] failed for', brand, name, e.message); }
+  } catch(e) {
+    if (e.name === 'AbortError') console.warn('[Enrich] timed out for', brand, name);
+    else console.warn('[Enrich] failed for', brand, name, e.message);
+  }
 }
 
-function enrichTextProducts(bubble) {
+async function enrichTextProducts(bubble) {
   const cards = bubble.querySelectorAll('[data-enrichable="true"]');
   if (!cards.length) return;
   console.log('[Enrich] Starting enrichment for', cards.length, 'cards');
-  // Stagger calls slightly so the server isn't hit all at once
-  cards.forEach((card, idx) => {
+  for (const card of Array.from(cards)) {
     const brand = card.dataset.brand || '';
     const name  = card.dataset.name  || '';
-    // Check cache first — no API call needed if we already have this image
+    // Check cache first — instant, no API call needed
     try {
       const cache = JSON.parse(localStorage.getItem('cressi_img_cache') || '{}');
       const cached = cache[`${brand}::${name}`];
@@ -1355,13 +1361,13 @@ function enrichTextProducts(bubble) {
           img.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;';
           imgBox.appendChild(img);
           console.log('[Enrich] Cache hit for', brand, name);
-          return;
         }
+        continue; // skip API call
       }
     } catch(e) {}
-    // Fire individual API call per card, staggered 2s apart so server isn't slammed
-    setTimeout(() => enrichOneCard(card, brand, name), idx * 2000);
-  });
+    // Sequential: await each card so we never have multiple enrichment calls in-flight
+    await enrichOneCard(card, brand, name);
+  }
 }
 
 // ══════════════════════════════════════════════
