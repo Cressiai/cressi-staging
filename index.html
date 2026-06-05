@@ -1054,7 +1054,7 @@ const RETAILER_SEARCH = {
   'farfetch':          q => `https://www.farfetch.com/shopping/women/search/items.aspx?q=${encodeURIComponent(q)}`,
   'shopbop':           q => `https://www.shopbop.com/search/?query=${encodeURIComponent(q)}`,
   'ssense':            q => `https://www.ssense.com/en-us/search?q=${encodeURIComponent(q)}`,
-  'mytheresa':         q => `https://www.mytheresa.com/us/en/search.html?term=${encodeURIComponent(q)}`,
+  'mytheresa':         q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=1583176&murl=${encodeURIComponent('https://www.mytheresa.com/us/en/women/search?q=' + encodeURIComponent(q))}`,
   'matches':           q => `https://www.matchesfashion.com/us/search?q=${encodeURIComponent(q)}`,
   'revolve':           q => `https://www.revolve.com/r/SearchResults.jsp?q=${encodeURIComponent(q)}`,
   // Luxury brand own sites
@@ -1143,6 +1143,74 @@ const BRAND_SEARCH = {
   'paige':         q => `https://www.paige.com/search?q=${encodeURIComponent(q)}`,
 };
 
+// Mytheresa Rakuten affiliate — 392-brand catalog (publisher: rierRip2cLc, merchant: 1583176)
+const MYTHERESA_BRANDS = new Set([
+  '\'S Max Mara','1 + in the Family','101 Copenhagen','7 For All Mankind','A.Emery','A.Presse',
+  'AG Jeans','Acne Studios','Adidas by Stella McCartney','Adriana Degreas','Aesther Ekme','Agolde',
+  'Agua by Agua Bendita','Akua Objects','Alaia','Alanui','Alemais','Alessandra Rich','Alex Perry',
+  'Alexa Lixfeld','Alexander Kirkeby','Alexandra Miro','Allude','Altuzarra','Amanu','Ami Paris',
+  'Amina Muaddi','Ananya','Ancient Greek Sandals','Anita Ko','Anna Kosturova','Aquazzura','Arch4',
+  'Area','Asceno','Assouline','Auralee','Aya Muse','Aztech Mountain','Balenciaga','Balmain',
+  'Bananhot','Bebe Organic','Binibamba','Birkenstock 1774','Bitossi','Blaze Milano','Blumarine',
+  'Bobo Choses','Bode','Bogner','Bogner Kids','Bonpoint','Bonton','Bordallo Pinheiro','Borsalino',
+  'Bottega Veneta','Brioni','Brunello Cucinelli','Brunello Cucinelli Kids','Bucherer Fine Jewellery',
+  'Burberry','Burberry Kids','Bvlgari','C\'era Una Volta','CDLP','Cabana','Cala de la Cruz',
+  'Calvin Klein Collection','Camilla','Canada Goose','Canada Goose Kids','Canali','Carolina Herrera',
+  'Cartier Eyewear Collection','Cassina','Charvet','Chloe','Chloe Kids','Christen',
+  'Christian Louboutin','Christian Louboutin Kids','Christofle','Christopher Esber','Church\'s',
+  'Citizens of Humanity','Clio Peppiatt','Commas','Comme des Garcons Homme','Coperni','Cordova',
+  'Costarellos','Courreges','Cozmo','Danielle Frankel','David Koma','David Yurman','De La Vali',
+  'DeMellier','Dehanche','Dior Eyewear','Doen','Dolce & Gabbana','Dolce & Gabbana Casa',
+  'Dolce & Gabbana Kids','Donsje','Dorothee Schumacher','Dries Van Noten','Dunhill','ERL',
+  'Elie Saab','Emilia Wickstead','Engelbert','Erdem','Eres','Etro','Extreme Cashmere','FPM Milano',
+  'Fabula','Faithfull','Farm Rio','Fear of God','Fedeli','Fendi','Ferragamo','Fforme','Flos',
+  'Floyd','Fornasetti','FoundRae','Frame','Frescobol Carioca','Gabriela Hearst','Ganni',
+  'Georg Jensen','George Cleverley','Gianvito Rossi','Ginori 1735','Giorgio Armani','Givenchy',
+  'God\'s True Cashmere','Goldbergh','Golden Goose','Golden Goose Kids','Gucci','Gucci Kids',
+  'Heidi Klein','Herbert Levine','Hogan','Hoka One One','Homme Plisse Issey Miyake','Hunza G',
+  'Hunza G Kids','Il Gufo','Ileana Makri','Isabel Marant','JUDE','JW Anderson','Jacquemus',
+  'Jacques Marie Mage','Jacques Wei','Jade Swim','Jardin des Orangers','Jean Paul Gaultier',
+  'Jellymallow','Jennifer Behr','Jennifer Fisher','Jenny Packham','Jil Sander','Jimmy Choo',
+  'Johanna Ortiz','John Lobb','Jonathan Adler','Joseph','Judith Leiber Couture','Juliet Dunn',
+  'Junya Watanabe','Kamyen','Karla Colletto','Khaite','Kiko Kostadinov','Kiton','Konges Slojd',
+  'L\'Objet','La Coqueta','La DoubleJ','La Fuori','Lardini','Le Kasha','Le Monde Beryl','Lemaire',
+  'Leo Lin','Les-Ottomans','Leset','Liewood','Lisa Yang','Loewe','Loewe Home Scents','Loro Piana',
+  'Louis Poulsen','Louise Misha','Louise Roe','Mach & Mach','Magda Butrym','Magnanni',
+  'Maison Margiela','Malone Souliers','Manolo Blahnik','Marant Etoile','Maria Lucia Hohan',
+  'Maria Tash','Marie Lichtenberg','Marina B','Marine Serre','Markarian','Marmar Halim','Marni',
+  'Marysia','Mateo','Maticevski','Max Mara','McQueen','Melissa Odabash','Metier',
+  'Michael Verheyden','Milena Kling','Mini Rodini','Missoni','Miu Miu','Molo','Moncler',
+  'Moncler Enfant','Moncler Genius','Moncler Grenoble','Monique Lhuillier','Monnalisa','Montce',
+  'Moon Boot','Moon Boot Kids','Mou Kids','Mugler','Natalia Criado','Nensi Dojaka','Nili Lotan',
+  'Nina Ricci','Noir Kei Ninomiya','Norma Kamali','Norrona','Nour Hammour','Octavia Elizabeth',
+  'Once Milano','Orlebar Brown','Oscar de la Renta','Oseree','Oseree Kids','Our Legacy',
+  'Pamela Zamore','Paris Texas','Patachou','Patou','PePe','Peak Performance','Pepa London',
+  'Pepita & Me','Perfect Moment','Perfect Moment Kids','Persee','Petite Amalie','Plan C',
+  'Polo Ralph Lauren','Polo Ralph Lauren Kids','Polspotten','Pom d\'Api','Posse','Poupette St Barth',
+  'Poupette St Barth Kids','Prada','Proenza Schouler','Pucci','RRL','Rabanne','Rachel Gilbert',
+  'Rainbow K','Ralph Lauren Collection','Ralph Lauren Purple Label','Rebecca Vallance',
+  'Rene Caovilla','Repossi','Rick Owens','Rick Owens Kids','Rixo','Roarsome','Roberto Cavalli',
+  'Rodarte','Roger Vivier','Rohe','Roksanda','Roland Mouret','Rotate','Roxanne First','Rubinacci',
+  'Ruslan Baginskiy','SIR','Sabah','Sacai','Safiyaa','Saint Laurent','Saman Amel','Same','Satisfy',
+  'Savette','Scotch & Soda Kids','Sease','Self-Portrait','Self-Portrait Kids','Serax','Sestini',
+  'Shay Jewelry','Shushu/Tong','Simkhai','Simone Rocha','Slowear','Slvrlake','Solace London',
+  'Sophie Bille Brahe','Souliers Martinez','Spinelli Kilcollin','Sportmax','Staud',
+  'Stella McCartney','Stella McCartney Kids','Stone Island','Stone and Strand','Stouls',
+  'Studio Nicholson','Sunspel','Suzanne Kalan','Sydney Evan','Taller Marmo','Tartine et Chocolat',
+  'Taschen','The Attico','The Frankie Shop','The House of Lyria','The New Arrivals Ilkyaz Ozel',
+  'The New Society','The Row','The Sei','The Upside','Thom Browne','Thom Sweeney','Tinycottons',
+  'Tod\'s','Tom Dixon','Tom Ford','Tory Burch','Toteme','Tove','Trudon','Tutu Du Monde','UGG Kids',
+  'Ulla Johnson','Umit Benan','Valentino','Valentino Garavani','Varley','Veja Kids','Velvet',
+  'Venini','Veronica Beard','Versace','Versace Home','Versace Kids','ViX Paula Hermanny',
+  'Victoria Beckham','Vilebrequin','Vilebrequin Kids','Vince','Visvim','Vivienne Westwood',
+  'Wales Bonner','Wardrobe.NYC','Wheat','Wolford','Xu Zhi','Yeprem','Yves Salomon','Yvonne Leon',
+  'Zanat','Zegna','Zimmermann','Zimmermann Kids'
+]);
+
+function mytheresaAffLink(q) {
+  return `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=1583176&murl=${encodeURIComponent('https://www.mytheresa.com/us/en/women/search?q=' + encodeURIComponent(q))}`;
+}
+
 function openShop(btn, retailer, q) {
   // Record taste click for memory
   try {
@@ -1162,13 +1230,24 @@ function openShop(btn, retailer, q) {
   }
   const rKey = (retailer || '').toLowerCase().trim();
   const bKey = (q || '').toLowerCase();
-  // 2. Try retailer search map
+  // 2. Try retailer search map (explicit retailer override)
   const rMatch = Object.keys(RETAILER_SEARCH).find(k => rKey.includes(k));
   if (rMatch) { window.open(RETAILER_SEARCH[rMatch](q), '_blank'); return; }
-  // 3. Try brand map
+  // 3. Mytheresa affiliate — use if brand is in their catalog
+  try {
+    const card = btn && (btn.closest('[data-enrichable="true"]') || btn.closest('.resp-card'));
+    const cardBrand = (card?.dataset.brand || '').trim();
+    if (cardBrand && MYTHERESA_BRANDS.has(cardBrand)) {
+      window.open(mytheresaAffLink(q), '_blank'); return;
+    }
+    // Fallback: check if q starts with a Mytheresa brand name (case-insensitive)
+    const mtMatch = [...MYTHERESA_BRANDS].find(b => bKey.startsWith(b.toLowerCase()));
+    if (mtMatch) { window.open(mytheresaAffLink(q), '_blank'); return; }
+  } catch(e) {}
+  // 4. Try brand direct-site map
   const bMatch = Object.keys(BRAND_SEARCH).find(k => bKey.startsWith(k));
   if (bMatch) { window.open(BRAND_SEARCH[bMatch](q), '_blank'); return; }
-  // 4. Google Shopping — shows exact product with prices across all retailers
+  // 5. Google Shopping — shows exact product with prices across all retailers
   window.open(`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q)}`, '_blank');
 }
 
