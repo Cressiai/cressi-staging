@@ -1366,27 +1366,28 @@ function openShop(btn, retailer, q) {
   // 2. Try retailer search map (explicit retailer override)
   const rMatch = Object.keys(RETAILER_SEARCH).find(k => rKey.includes(k));
   if (rMatch) { window.open(RETAILER_SEARCH[rMatch](q), '_blank'); return; }
-  // 3. Mytheresa affiliate — use if brand is in their catalog
+  // 3 & 4. Affiliate routing — check Mytheresa + COUTR together so overlap brands open both
+  // tabs simultaneously: Mytheresa first (primary), COUTR second (inventory backup).
   try {
     const card = btn && (btn.closest('[data-enrichable="true"]') || btn.closest('.resp-card'));
-    const cardBrand = (card?.dataset.brand || '').trim();
-    if (cardBrand && MYTHERESA_BRANDS.has(cardBrand)) {
-      window.open(mytheresaAffLink(q), '_blank'); return;
-    }
-    // Fallback: check if q starts with a Mytheresa brand name (case-insensitive)
-    const mtMatch = [...MYTHERESA_BRANDS].find(b => bKey.startsWith(b.toLowerCase()));
-    if (mtMatch) { window.open(mytheresaAffLink(q), '_blank'); return; }
-  } catch(e) {}
-  // 4. COUTR affiliate — 700+ brands incl. Celine, Off-White, Alexander McQueen, Anine Bing…
-  try {
-    const card2 = btn && (btn.closest('[data-enrichable="true"]') || btn.closest('.resp-card'));
-    const cardBrandUp = (card2?.dataset.brand || '').trim().toUpperCase();
-    if (cardBrandUp && COUTR_BRANDS.has(cardBrandUp)) {
-      window.open(coutrAffLink(q), '_blank'); return;
-    }
+    const cardBrand   = (card?.dataset.brand || '').trim();
+    const cardBrandUp = cardBrand.toUpperCase();
     const qUp = (q || '').toUpperCase();
-    const coutrMatch = [...COUTR_BRANDS].find(b => qUp.startsWith(b));
-    if (coutrMatch) { window.open(coutrAffLink(q), '_blank'); return; }
+
+    const onMT    = cardBrand    && MYTHERESA_BRANDS.has(cardBrand);
+    const onCOUTR = cardBrandUp  && COUTR_BRANDS.has(cardBrandUp);
+
+    // Fallback scans when brand attribute isn't set
+    const mtScan    = !onMT    && [...MYTHERESA_BRANDS].find(b => bKey.startsWith(b.toLowerCase()));
+    const coutrScan = !onCOUTR && [...COUTR_BRANDS].find(b => qUp.startsWith(b));
+
+    const useMT    = onMT    || !!mtScan;
+    const useCOUTR = onCOUTR || !!coutrScan;
+
+    // Open Mytheresa first (primary affiliate), COUTR second (backup for out-of-stock)
+    if (useMT)    window.open(mytheresaAffLink(q), '_blank');
+    if (useCOUTR) window.open(coutrAffLink(q),    '_blank');
+    if (useMT || useCOUTR) return;
   } catch(e) {}
   // 5. Try brand direct-site map
   const bMatch = Object.keys(BRAND_SEARCH).find(k => bKey.startsWith(k));
