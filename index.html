@@ -1054,17 +1054,17 @@ const RETAILER_SEARCH = {
   'farfetch':          q => `https://www.farfetch.com/shopping/women/search/items.aspx?q=${encodeURIComponent(q)}`,
   'shopbop':           q => `https://www.shopbop.com/search/?query=${encodeURIComponent(q)}`,
   'ssense':            q => `https://www.ssense.com/en-us/search?q=${encodeURIComponent(q)}`,
-  'mytheresa':         q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=1583176&murl=${encodeURIComponent('https://www.mytheresa.com/us/en/women/search?q=' + encodeURIComponent(q))}`,
+  'mytheresa':         q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=43172&murl=${encodeURIComponent('https://www.mytheresa.com/us/en/women/search?q=' + encodeURIComponent(q))}`,
   'matches':           q => `https://www.matchesfashion.com/us/search?q=${encodeURIComponent(q)}`,
   'revolve':           q => `https://www.revolve.com/r/SearchResults.jsp?q=${encodeURIComponent(q)}`,
   // Rakuten affiliate — multi-brand
-  'coutr':             q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=2004894&murl=${encodeURIComponent('https://www.coutr.com/search?q=' + encodeURIComponent(q))}`,
+  'coutr':             q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=54152&murl=${encodeURIComponent('https://www.coutr.com/search?q=' + encodeURIComponent(q))}`,
   // Rakuten affiliate — single-brand direct retailers
-  'diane von furstenberg': q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=1752611&murl=${encodeURIComponent('https://www.dvf.com/search?q=' + encodeURIComponent(q))}`,
-  'dvf':               q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=1752611&murl=${encodeURIComponent('https://www.dvf.com/search?q=' + encodeURIComponent(q))}`,
-  'patbo':             q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=1960079&murl=${encodeURIComponent('https://patbo.com/search?q=' + encodeURIComponent(q))}`,
-  'pat bo':            q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=1960079&murl=${encodeURIComponent('https://patbo.com/search?q=' + encodeURIComponent(q))}`,
-  'fleur du mal':      q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=1500696&murl=${encodeURIComponent('https://www.fleurdumal.com/search?q=' + encodeURIComponent(q))}`,
+  'diane von furstenberg': q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=53590&murl=${encodeURIComponent('https://www.dvf.com/search?q=' + encodeURIComponent(q))}`,
+  'dvf':               q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=53590&murl=${encodeURIComponent('https://www.dvf.com/search?q=' + encodeURIComponent(q))}`,
+  'patbo':             q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=46524&murl=${encodeURIComponent('https://patbo.com/search?q=' + encodeURIComponent(q))}`,
+  'pat bo':            q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=46524&murl=${encodeURIComponent('https://patbo.com/search?q=' + encodeURIComponent(q))}`,
+  'fleur du mal':      q => `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=50739&murl=${encodeURIComponent('https://www.fleurdumal.com/search?q=' + encodeURIComponent(q))}`,
   // Luxury brand own sites
   'gucci':             q => `https://www.gucci.com/us/en/search?query=${encodeURIComponent(q)}`,
   'prada':             q => `https://www.prada.com/us/en/search.html?q=${encodeURIComponent(q)}`,
@@ -1216,7 +1216,7 @@ const MYTHERESA_BRANDS = new Set([
 ]);
 
 function mytheresaAffLink(q) {
-  return `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=1583176&murl=${encodeURIComponent('https://www.mytheresa.com/us/en/women/search?q=' + encodeURIComponent(q))}`;
+  return `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=43172&murl=${encodeURIComponent('https://www.mytheresa.com/us/en/women/search?q=' + encodeURIComponent(q))}`;
 }
 
 // COUTR — 700+ brand multi-boutique (Celine, Off-White, McQueen, Anine Bing…) mid=2004894
@@ -1341,7 +1341,7 @@ const COUTR_BRANDS = new Set([
 ]);
 
 function coutrAffLink(q) {
-  return `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=2004894&murl=${encodeURIComponent('https://www.coutr.com/search?q=' + encodeURIComponent(q))}`;
+  return `https://click.linksynergy.com/deeplink?id=rierRip2cLc&mid=54152&murl=${encodeURIComponent('https://www.coutr.com/search?q=' + encodeURIComponent(q))}`;
 }
 
 function openShop(btn, retailer, q) {
